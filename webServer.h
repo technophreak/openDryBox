@@ -12,7 +12,7 @@ void getHomePage() {
   htmlPage = F("<!DOCTYPE HTML>"
     "<html><head><meta http-equiv='refresh' content='5'></head>");
 
-  htmlPage += "<h1>" + string(programName) + "&nbsp;" + String(programVersion) + "</h1>";
+  htmlPage += "<h1>" + String(programName) + "&nbsp;" + String(programVersion) + "</h1>";
   htmlPage += "<h2>[" + myPreferences.getString("device_name") + "]</h2>";
 
   htmlPage += "<form>";
@@ -68,11 +68,10 @@ void getJsonSettings() {
       }
  
       if (restServer.arg("chipInfo")== "true"){
-          doc["chipId"] = ESP.getChipId();
-          doc["flashChipId"] = ESP.getFlashChipId();
+          doc["chipId"] = ESP.getChipModel();
           doc["flashChipSize"] = ESP.getFlashChipSize();
-          doc["flashChipRealSize"] = ESP.getFlashChipRealSize();
       }
+
       if (restServer.arg("freeHeap")== "true"){
           doc["freeHeap"] = ESP.getFreeHeap();
       }
@@ -161,6 +160,7 @@ void espRestart() {
 
 // Init Rest Server
 void restServerInit() {
+
     restServer.on("/", HTTP_GET, getHomePage);
     restServer.on(F("/getJsonStatus"), HTTP_GET, getJsonStatus);
     restServer.on(F("/getJsonSettings"), HTTP_GET, getJsonSettings);
