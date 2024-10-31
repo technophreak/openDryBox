@@ -5,14 +5,15 @@ const String allSettings = R"(
     "device_name": { "type": "string", "default": "Untitled" },
     "wifi_enabled": { "type": "boolean", "default": true },
     "wifi_ssid": { "type": "string", "default": "" },
-    "wifi_password": { "type": "string", "default": "" },
-    "wifi_timeout": { "type": "int", "default": 10 },
-    "wifi_dhcp": { "type": "boolean", "default": true },
-    "wifi_ip": { "type": "string", "default": "" },
-    "wifi_subnet": { "type": "string", "default": "" },
-    "wifi_gateway": { "type": "string", "default": "" },
-    "wifi_dns_1": { "type": "string", "default": "" },
-    "wifi_dns_2": { "type": "string", "default": "" },
+    "wifi_password": { "type": "string", "default": "", "obfuscate": true },
+    "wifi_timeout": { "type": "integer", "default": 10 },
+    "network_dhcp": { "type": "boolean", "default": true },
+    "network_ip": { "type": "string", "default": "" },
+    "network_subnet": { "type": "string", "default": "" },
+    "wnetwork_gateway": { "type": "string", "default": "" },
+    "network_dns_1": { "type": "string", "default": "" },
+    "network_dns_2": { "type": "string", "default": "" },
+    "webserver_port": { "type": "integer", "default": 80 },
   }
 )";
 
