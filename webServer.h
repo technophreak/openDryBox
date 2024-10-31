@@ -57,29 +57,41 @@ void getJsonStatus() {
 // Serving Settings Data
 void getJsonSettings() {
 
-      DynamicJsonDocument doc(512);
+  DynamicJsonDocument doc(512);
  
-      doc["ip"] = WiFi.localIP().toString();
-      doc["gw"] = WiFi.gatewayIP().toString();
-      doc["nm"] = WiFi.subnetMask().toString();
- 
-      if (restServer.arg("signalStrength")== "true"){
-          doc["signalStrengh"] = WiFi.RSSI();
-      }
- 
-      if (restServer.arg("chipInfo")== "true"){
-          doc["chipId"] = ESP.getChipModel();
-          doc["flashChipSize"] = ESP.getFlashChipSize();
-      }
+  // Load preferences
+  for (JsonPair kv : objSettings) {
 
-      if (restServer.arg("freeHeap")== "true"){
-          doc["freeHeap"] = ESP.getFreeHeap();
-      }
+    const char* keyName = kv.key().c_str(); 
+    const String keyType = String(kv.value()["type"]);
+
+    if (keyType == "string") {
+      doc[keyName] = myPreferences.getString(keyName);
+    } else if (keyType == "integer") {
+      doc[keyName] = myPreferences.getInt(keyName);
+    } else if (keyType == "boolean") {
+      doc[keyName] = myPreferences.getBool(keyName);
+    }
+
+  }
+
+  if (restServer.arg("signalStrength")== "true"){
+      doc["signalStrengh"] = WiFi.RSSI();
+  }
+
+  if (restServer.arg("chipInfo")== "true"){
+      doc["chipId"] = ESP.getChipModel();
+      doc["flashChipSize"] = ESP.getFlashChipSize();
+  }
+
+  if (restServer.arg("freeHeap")== "true"){
+      doc["freeHeap"] = ESP.getFreeHeap();
+  }
  
 //      Serial.print(F("Stream..."));
-      String buf;
-      serializeJson(doc, buf);
-      restServer.send(200, F("application/json"), buf);
+  String buf;
+  serializeJson(doc, buf);
+  restServer.send(200, F("application/json"), buf);
 //      Serial.print(F("done."));
 }
  
