@@ -1,39 +1,26 @@
-#include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-#include <ESPmDNS.h>
 #include <WiFiUdp.h>
-#include <ArduinoOTA.h>
-
-const char* programName = "openDryBox";
-const char* programVersion = "v0.0.1";
-
-const char* ota_password = "@rduin0";
-bool otaServiceStarted = 0;
-
-bool wifiServiceStarted = false;
-
-// Declare Preferences
-Preferences myPreferences;
 
 // Load Settings Definition
 #include "allSettings.h"
-
 // Load Web Server
 #include "webServer.h"
 
+WebServer* webServer;
 
 void setup() {
 
   // Init Serial 
+
   Serial.begin(921600);
 
   // Display program version
-  Serial.println("\n\nProgram: " + String(programName) + " - " + String(programVersion));
+  Serial.println("\n\nProgram: " + String(PROGRAM_NAME) + " - " + String(PROGRAM_VERSION));
 
   // Initialize Settings Definition
-  initSettingsDefinition();  
+  objSettings = initSettingsDefinition(allSettings);
 
   // Load Preferences
   loadPreferences();
@@ -44,7 +31,7 @@ void setup() {
   if (wifiServiceStarted) {
 
     // Init Rest Server
-    restServerInit();
+    webServer = new WebServer(objSettings, &myPreferences, 80);
 
     // Init OTA Updates
     otaUpdatesInit();
@@ -57,10 +44,9 @@ void loop() {
 
 //  debugOutput();
   if (wifiServiceStarted) {
-    restServer.handleClient();
+    webServer->handleClient();
     ArduinoOTA.handle();
   }
-
 }
 
 void otaUpdatesInit()
