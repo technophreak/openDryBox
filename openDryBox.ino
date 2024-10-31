@@ -53,7 +53,7 @@ void otaUpdatesInit()
 {
 
   // OTA Updates
-  ArduinoOTA.setPassword(ota_password);
+  ArduinoOTA.setPassword(myPreferences.getString("ota_password").c_str());
   ArduinoOTA.onStart([]() {
     Serial.println("\nOTA Request Started");
   });
