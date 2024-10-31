@@ -9,7 +9,7 @@
 
 class WebServer {
   public:
-    WebServer(JsonObject objSettings, Preferences* myPreferences, int port);
+    WebServer(JsonObject objSettings, Preferences* myPreferences);
     ~WebServer();
     void handleClient();
   private:

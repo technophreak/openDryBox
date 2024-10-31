@@ -198,8 +198,8 @@ void WebServer::handleClient() {
   this->restServer->handleClient();
 }
 
-WebServer::WebServer(JsonObject objSettings, Preferences* myPreferences, int port) {
-  this->restServer = new ESP32WebServer(port);
+WebServer::WebServer(JsonObject objSettings, Preferences* myPreferences) {
+  this->restServer = new ESP32WebServer(myPreferences->getInt("webserver_port"));
   this->objSettings = objSettings;
   this->myPreferences = myPreferences;
 
