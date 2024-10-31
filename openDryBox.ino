@@ -121,7 +121,10 @@ void loadPreferences()
 
     } else { 
       if (keyType == "string") {
-        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getString(keyName)) + "'");        
+        if (kv.value()["obfuscate"])
+          Serial.println("Preference for " + String(keyName) + " is set to '********'");
+        else               
+          Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getString(keyName)) + "'");        
       } else if (keyType == "integer") {
         Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getInt(keyName)) + "'");        
       } else if (keyType == "boolean") {

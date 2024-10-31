@@ -66,7 +66,10 @@ void getJsonSettings() {
     const String keyType = String(kv.value()["type"]);
 
     if (keyType == "string") {
-      doc[keyName] = myPreferences.getString(keyName);
+      if (kv.value()["obfuscate"])
+        doc[keyName] = "*********";
+      else 
+        doc[keyName] = myPreferences.getString(keyName);
     } else if (keyType == "integer") {
       doc[keyName] = myPreferences.getInt(keyName);
     } else if (keyType == "boolean") {
