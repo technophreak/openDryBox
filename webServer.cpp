@@ -67,32 +67,32 @@ void WebServer::getJsonSettings() {
       if (kv.value()["obfuscate"])
         doc[keyName] = "*********";
       else 
-        doc[keyName] = this->myPreferences.getString(keyName);
+        doc[keyName] = this->myPreferences->getString(keyName);
     } else if (keyType == "integer") {
-      doc[keyName] = this->myPreferences.getInt(keyName);
+      doc[keyName] = this->myPreferences->getInt(keyName);
     } else if (keyType == "boolean") {
-      doc[keyName] = this->myPreferences.getBool(keyName);
+      doc[keyName] = this->myPreferences->getBool(keyName);
     }
 
   }
 
-  if (restServer.arg("signalStrength")== "true"){
+  if (this->restServer->arg("signalStrength") == "true"){
       doc["signalStrengh"] = WiFi.RSSI();
   }
 
-  if (restServer.arg("chipInfo")== "true"){
+  if (this->restServer->arg("chipInfo") == "true"){
       doc["chipId"] = ESP.getChipModel();
       doc["flashChipSize"] = ESP.getFlashChipSize();
   }
 
-  if (restServer.arg("freeHeap")== "true"){
+  if (this->restServer->arg("freeHeap") == "true"){
       doc["freeHeap"] = ESP.getFreeHeap();
   }
  
 //      Serial.print(F("Stream..."));
   String buf;
   serializeJson(doc, buf);
-  restServer.send(200, F("application/json"), buf);
+  this->restServer->send(200, F("application/json"), buf);
 //      Serial.print(F("done."));
 }
  
