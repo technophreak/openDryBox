@@ -1,15 +1,22 @@
+#pragma once
+#ifndef _ALL_SETTINGS_H_
+#define _ALL_SETTINGS_H_
+
 #include <ArduinoJson.h>
+#include <Preferences.h>
 
-const String allSettings = R"(
-  {
-    "device_name": { "type": "string", "default": "Untitled" },
-  }
-)";
+#define PROGRAM_NAME "openDryBox"
+#define PROGRAM_VERSION "v0.0.2"
 
-DynamicJsonDocument jsonDoc(512);
-JsonObject objSettings;
+extern const String allSettings;
+extern JsonObject objSettings;
 
-void initSettingsDefinition() {
-  deserializeJson(jsonDoc, allSettings);
-  objSettings = jsonDoc.as<JsonObject>();
-}
+// Declare Preferences
+extern Preferences myPreferences;
+
+extern bool otaServiceStarted;
+extern bool wifiServiceStarted;
+
+JsonObject initSettingsDefinition(String allSettings);
+
+#endif
