@@ -7,6 +7,7 @@
 
 #define PROGRAM_NAME "openDryBox"
 #define PROGRAM_VERSION "v0.0.1"
+#define WEBSERVER_PORT 80
 
 extern const String allSettings;
 extern JsonObject objSettings;

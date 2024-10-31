@@ -31,7 +31,7 @@ void setup() {
   if (wifiServiceStarted) {
 
     // Init Rest Server
-    webServer = new WebServer(objSettings, &myPreferences, 80);
+    webServer = new WebServer(objSettings, &myPreferences, WEBSERVER_PORT);
 
     // Init OTA Updates
     otaUpdatesInit();
