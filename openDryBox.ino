@@ -7,7 +7,7 @@
 #include <ArduinoOTA.h>
 
 const char* programName = "openDryBox";
-const char* programVersion = "v0.0.1";
+const char* programVersion = "v0.0.2";
 
 const char* ota_password = "@rduin0";
 bool otaServiceStarted = 0;
@@ -30,6 +30,7 @@ void setup() {
   Serial.begin(921600);
 
   // Display program version
+  Serial.println();
   Serial.println("\n\nProgram: " + String(programName) + " - " + String(programVersion));
 
   // Initialize Settings Definition
@@ -101,6 +102,25 @@ void loadPreferences()
   //myPreferences.clear();
 
   // Load preferences and set default if does not exist
+  for (JsonPair kv : objSettings) {
+
+    if (myPreferences.isKey(kv.key().c_str()) == false) {
+
+      Serial.println("Initializing default '" + kv.value()["default"].as<String>() + "' value for " + kv.key().c_str() + " as type '" + String(kv.value()["type"]) + "'");
+
+      if (String(kv.value()["type"]) == "string") {
+        myPreferences.putString(kv.key().c_str(), kv.value()["default"].as<String>());
+      } else if (String(kv.value()["type"]) == "integer") {
+        myPreferences.putInt(kv.key().c_str(), kv.value()["default"].as<unsigned int>());
+      } else if (String(kv.value()["type"]) == "boolean") {
+        myPreferences.putBool(kv.key().c_str(), kv.value()["default"].as<bool>());
+      } 
+
+    } else {      
+      Serial.println("Preference for " + String(kv.key().c_str()) + " is set to '" + String(myPreferences.getString(kv.key().c_str())) + "'");
+    }
+
+  }
 
 
   // TEMP CODE - OVERRIDE CONFIG FOR DEBUGGING
@@ -140,6 +160,7 @@ void connectWifi()
 
   // Init WiFi
   WiFi.begin(myPreferences.getString("wifi_ssid"), myPreferences.getString("wifi_password"));
+  Serial.println();
   Serial.printf("Connecting to '%s' ", myPreferences.getString("wifi_ssid"));
 
   // Wait a bit for connection
@@ -154,6 +175,7 @@ void connectWifi()
     Serial.println();
     Serial.print("Connected, IP address: ");
     Serial.println(WiFi.localIP());
+    Serial.println();
     wifiServiceStarted = true;
   } else {
     Serial.println();

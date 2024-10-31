@@ -6,7 +6,7 @@ const String allSettings = R"(
     "wifi_enabled": { "type": "boolean", "default": true },
     "wifi_ssid": { "type": "string", "default": "" },
     "wifi_password": { "type": "string", "default": "" },
-    "wifi_timeout": { "type": "int", "default": 10 },
+    "wifi_timeout": { "type": "integer", "default": 10 },
     "wifi_dhcp": { "type": "boolean", "default": true },
     "wifi_ip": { "type": "string", "default": "" },
     "wifi_subnet": { "type": "string", "default": "" },
