@@ -104,20 +104,29 @@ void loadPreferences()
   // Load preferences and set default if does not exist
   for (JsonPair kv : objSettings) {
 
-    if (myPreferences.isKey(kv.key().c_str()) == false) {
+    const char* keyName = kv.key().c_str(); 
+    const String keyType = String(kv.value()["type"]);
 
-      Serial.println("Initializing default '" + kv.value()["default"].as<String>() + "' value for " + kv.key().c_str() + " as type '" + String(kv.value()["type"]) + "'");
+    if (myPreferences.isKey(keyName) == false) {
 
-      if (String(kv.value()["type"]) == "string") {
-        myPreferences.putString(kv.key().c_str(), kv.value()["default"].as<String>());
-      } else if (String(kv.value()["type"]) == "integer") {
-        myPreferences.putInt(kv.key().c_str(), kv.value()["default"].as<unsigned int>());
-      } else if (String(kv.value()["type"]) == "boolean") {
-        myPreferences.putBool(kv.key().c_str(), kv.value()["default"].as<bool>());
+      Serial.println("Initializing default '" + kv.value()["default"].as<String>() + "' value for " + keyName + " as type '" + keyType + "'");
+
+      if (keyType == "string") {
+        myPreferences.putString(keyName, kv.value()["default"].as<String>());
+      } else if (keyType == "integer") {
+        myPreferences.putInt(keyName, kv.value()["default"].as<unsigned int>());
+      } else if (keyType == "boolean") {
+        myPreferences.putBool(keyName, kv.value()["default"].as<bool>());
       } 
 
-    } else {      
-      Serial.println("Preference for " + String(kv.key().c_str()) + " is set to '" + String(myPreferences.getString(kv.key().c_str())) + "'");
+    } else { 
+      if (keyType == "string") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getString(keyName)) + "'");        
+      } else if (keyType == "integer") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getInt(keyName)) + "'");        
+      } else if (keyType == "boolean") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getBool(keyName)) + "'");        
+      }       
     }
 
   }
