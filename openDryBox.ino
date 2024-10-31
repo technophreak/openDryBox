@@ -31,7 +31,7 @@ void setup() {
   if (wifiServiceStarted) {
 
     // Init Rest Server
-    webServer = new WebServer(objSettings, &myPreferences, WEBSERVER_PORT);
+    webServer = new WebServer(objSettings, &myPreferences, myPreferences.getInt("webserver_port"));
 
     // Init OTA Updates
     otaUpdatesInit();
@@ -87,6 +87,37 @@ void loadPreferences()
   //myPreferences.clear();
 
   // Load preferences and set default if does not exist
+  for (JsonPair kv : objSettings) {
+
+    const char* keyName = kv.key().c_str(); 
+    const String keyType = String(kv.value()["type"]);
+
+    if (myPreferences.isKey(keyName) == false) {
+
+      Serial.println("Initializing default '" + kv.value()["default"].as<String>() + "' value for " + keyName + " as type '" + keyType + "'");
+
+      if (keyType == "string") {
+        myPreferences.putString(keyName, kv.value()["default"].as<String>());
+      } else if (keyType == "integer") {
+        myPreferences.putInt(keyName, kv.value()["default"].as<unsigned int>());
+      } else if (keyType == "boolean") {
+        myPreferences.putBool(keyName, kv.value()["default"].as<bool>());
+      } 
+
+    } else { 
+      if (keyType == "string") {
+        if (kv.value()["obfuscate"])
+          Serial.println("Preference for " + String(keyName) + " is set to '********'");
+        else               
+          Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getString(keyName)) + "'");        
+      } else if (keyType == "integer") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getInt(keyName)) + "'");        
+      } else if (keyType == "boolean") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getBool(keyName)) + "'");        
+      }       
+    }
+
+  }
 
 
   // TEMP CODE - OVERRIDE CONFIG FOR DEBUGGING
@@ -126,6 +157,7 @@ void connectWifi()
 
   // Init WiFi
   WiFi.begin(myPreferences.getString("wifi_ssid"), myPreferences.getString("wifi_password"));
+  Serial.println();
   Serial.printf("Connecting to '%s' ", myPreferences.getString("wifi_ssid"));
 
   // Wait a bit for connection
@@ -140,6 +172,7 @@ void connectWifi()
     Serial.println();
     Serial.print("Connected, IP address: ");
     Serial.println(WiFi.localIP());
+    Serial.println();
     wifiServiceStarted = true;
   } else {
     Serial.println();
