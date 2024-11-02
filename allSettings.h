@@ -6,17 +6,17 @@
 #include <Preferences.h>
 
 #define PROGRAM_NAME "openDryBox"
-#define PROGRAM_VERSION "v0.0.1"
-#define WEBSERVER_PORT 80
+#define PROGRAM_VERSION "v0.0.3"
 
 extern const String allSettings;
 extern JsonObject objSettings;
 
-// Declare Preferences
-extern const char* ota_password;
 extern bool otaServiceStarted;
-
 extern bool wifiServiceStarted;
+
+extern uint64_t sensor0ReadMillis;
+extern float sensor0Temperature;
+extern float sensor0Humidity;
 
 JsonObject initSettingsDefinition(String allSettings);
 
