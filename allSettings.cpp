@@ -14,6 +14,7 @@ const String allSettings = R"(
     "network_dns_1": { "type": "string", "default": "" },
     "network_dns_2": { "type": "string", "default": "" },
     "webserver_port": { "type": "integer", "default": 80 },
+    "mySpecialValue": { "type": "string", "default": ""}
   }
 )";
 
@@ -21,8 +22,6 @@ DynamicJsonDocument jsonDoc(512);
 JsonObject objSettings;
 
 // Declare Preferences
-Preferences myPreferences;
-
 const char* ota_password = "@rduin0";
 bool otaServiceStarted = 0;
 

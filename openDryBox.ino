@@ -9,6 +9,7 @@
 #include "webServer.h"
 
 WebServer* webServer;
+Preferences myPreferences;
 
 void setup() {
 
@@ -121,11 +122,12 @@ void loadPreferences()
 
 
   // TEMP CODE - OVERRIDE CONFIG FOR DEBUGGING
-  if (false) {
+  if (true) {
+    Serial.println("Overriding configs!");
     myPreferences.putBool("wifi_enabled", true); 
     myPreferences.putInt("wifi_timeout", 10); 
-    myPreferences.putString("wifi_ssid", ""); 
-    myPreferences.putString("wifi_password", ""); 
+    myPreferences.putString("wifi_ssid", "MelSimUni"); 
+    myPreferences.putString("wifi_password", "melsimnet"); 
   }
   
 }

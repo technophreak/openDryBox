@@ -13,8 +13,6 @@ extern const String allSettings;
 extern JsonObject objSettings;
 
 // Declare Preferences
-extern Preferences myPreferences;
-
 extern const char* ota_password;
 extern bool otaServiceStarted;
 
