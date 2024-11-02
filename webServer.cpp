@@ -16,6 +16,8 @@ void WebServer::getHomePage() {
   htmlPage += "<form>";
 
   htmlPage += "<fieldset><legend>Status</legend>";
+  htmlPage += "Sensor 0 - Temperature: " + String(sensor0Temperature) + " &deg;C<br/>";
+  htmlPage += "Sensor 0 - Humidity: " + String(sensor0Humidity) + " %<br/>";
   htmlPage += "</fieldset>";
   
   htmlPage += "<br/>";
@@ -60,18 +62,20 @@ void WebServer::getJsonSettings() {
   // Load preferences
   for (JsonPair kv : objSettings) {
 
-    const char* keyName = kv.key().c_str(); 
+    const char* cKeyName = kv.key().c_str(); 
     const String keyType = String(kv.value()["type"]);
 
     if (keyType == "string") {
       if (kv.value()["obfuscate"])
-        doc[keyName] = "*********";
+        doc[cKeyName] = "*********";
       else 
-        doc[keyName] = this->myPreferences->getString(keyName);
+        doc[cKeyName] = this->myPreferences->getString(cKeyName);
     } else if (keyType == "integer") {
-      doc[keyName] = this->myPreferences->getInt(keyName);
+      doc[cKeyName] = this->myPreferences->getInt(cKeyName);
     } else if (keyType == "boolean") {
-      doc[keyName] = this->myPreferences->getBool(keyName);
+      doc[cKeyName] = this->myPreferences->getBool(cKeyName);
+    } else if (keyType == "float") {
+      doc[cKeyName] = this->myPreferences->getFloat(cKeyName);
     }
 
   }
@@ -105,15 +109,22 @@ void WebServer::setSettings() {
 
     html += " <b>" + this->restServer->argName(i) + "</b> - ";
 
-    const char* cArgName = this->restServer->argName(i).c_str();
+    String argName = this->restServer->argName(i);
+    const char* cArgName = argName.c_str();     
     JsonDocument setting = this->objSettings[cArgName];
 
     // Find out if definition exists
     if (!this->objSettings[cArgName]) {
-      html += "<i style='color:red;'>" + (String)cArgName + " - Invalid setting</i><br/>";
+      html += "<i style='color:red;'>" + argName + " - Invalid setting</i><br/>";
       continue;
     }
     
+    // Check if setting is editable
+    if (setting["editable"] && setting["editable"].as<bool>() == false) {
+      html += "<i style='color: red'> Non-editable setting " + argName + ".</i><br />";
+      continue;
+    }
+
     bool useDefault = (this->restServer->arg(i) == "");
 
     if (setting["type"].as<String>() == "string") {
@@ -121,27 +132,35 @@ void WebServer::setSettings() {
         html += "Current value: '" + this->myPreferences->getString(cArgName) + "'";
         if (useDefault) { newValue = setting["default"].as<String>(); }
         else { newValue = this->restServer->arg(i); }
-        this->myPreferences->putString(this->restServer->argName(i).c_str(), newValue);
+        this->myPreferences->putString(cArgName, newValue);
         html += " - New value: '" + newValue + "'<br/>";
     }
     else if (setting["type"].as<String>() == "integer") {
         int newValue;
-        html += "Current value: " + String(this->myPreferences->getInt(this->restServer->argName(i).c_str()));
-        if (useDefault) { newValue = this->objSettings[this->restServer->argName(i).c_str()]["default"].as<unsigned int>(); }
+        html += "Current value: " + String(this->myPreferences->getInt(cArgName));
+        if (useDefault) { newValue = this->objSettings[cArgName]["default"].as<unsigned int>(); }
         else { newValue = this->restServer->arg(i).toInt(); }
-        this->myPreferences->putInt(this->restServer->argName(i).c_str(), newValue);
+        this->myPreferences->putInt(cArgName, newValue);
         html += " - New value: " + String(newValue) + "<br/>";
     }
     else if (setting["type"].as<String>() == "bool") {
-        int newValue;
-        html += "Current value: " + String(this->myPreferences->getBool(this->restServer->argName(i).c_str()));
-        if (useDefault) { newValue = this->objSettings[this->restServer->argName(i).c_str()]["default"].as<bool>(); }
+        bool newValue;
+        html += "Current value: " + String(this->myPreferences->getBool(cArgName));
+        if (useDefault) { newValue = this->objSettings[cArgName]["default"].as<bool>(); }
         else { newValue = this->restServer->arg(i).toInt(); }
-        this->myPreferences->putInt(this->restServer->argName(i).c_str(), newValue);
+        this->myPreferences->putInt(cArgName, newValue);
         html += " - New value: " + String(newValue) + "<br/>";
     }
+    else if (setting["type"].as<String>() == "float") {
+        float newValue;
+        html += "Current value: " + String(this->myPreferences->getFloat(cArgName));
+        if (useDefault) { newValue = this->objSettings[cArgName]["default"].as<float>(); }
+        else { newValue = this->restServer->arg(i).toFloat(); }
+        this->myPreferences->putFloat(cArgName, newValue);
+        html += " - New value: " + String(newValue) + "<br/>";
+    }    
     else {
-      html += "<i style='color: red'> Unsupported type \"" + setting["type"].as<String>() + "\" for parameter " + (String)cArgName + ".</i><br />";
+      html += "<i style='color: red'> Unsupported type \"" + setting["type"].as<String>() + "\" for setting " + (String)cArgName + ".</i><br />";
     }
   }
   this->restServer->send(200, "text/html", html);

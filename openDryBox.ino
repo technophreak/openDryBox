@@ -1,6 +1,8 @@
+// Required libraries
+#include <dhtnew.h>
+
 #include <WiFi.h>
 #include <WiFiClient.h>
-
 #include <WiFiUdp.h>
 
 // Load Settings Definition
@@ -8,12 +10,13 @@
 // Load Web Server
 #include "webServer.h"
 
+// Declare instances
 WebServer* webServer;
+Preferences myPreferences; 
 
 void setup() {
 
   // Init Serial 
-
   Serial.begin(921600);
 
   // Display program version
@@ -47,6 +50,8 @@ void loop() {
     webServer->handleClient();
     ArduinoOTA.handle();
   }
+
+  DHTRead(myPreferences.getInt("sensor0_pin"), myPreferences.getInt("sensor0_toffset"), myPreferences.getInt("sensor0_hoffset"));
 }
 
 void otaUpdatesInit()
@@ -74,6 +79,32 @@ void otaUpdatesInit()
 
 }
 
+void DHTRead(uint8_t pin, uint8_t temperatureOffset, uint8_t humidityOffset)
+{
+  DHTNEW mySensor(pin);
+
+  if (millis() - sensor0ReadMillis > 2000) {
+
+    sensor0ReadMillis = millis();
+
+    mySensor.setHumOffset(temperatureOffset);
+    mySensor.setTempOffset(humidityOffset);
+
+    mySensor.read();
+
+    sensor0Temperature = mySensor.getTemperature();
+    sensor0Humidity = mySensor.getHumidity();
+
+    Serial.print("Temperature: ");
+    Serial.print(sensor0Temperature);
+    Serial.print(" °C");
+    Serial.print("\t");
+    Serial.print("Humidity: ");
+    Serial.print(sensor0Humidity);
+    Serial.print(" %");
+    Serial.println();
+  }
+}
 
 
 /* Load preferences */
@@ -102,6 +133,8 @@ void loadPreferences()
         myPreferences.putInt(keyName, kv.value()["default"].as<unsigned int>());
       } else if (keyType == "boolean") {
         myPreferences.putBool(keyName, kv.value()["default"].as<bool>());
+      } else if (keyType == "float") {
+        myPreferences.putFloat(keyName, kv.value()["default"].as<float>());
       } 
 
     } else { 
@@ -114,6 +147,8 @@ void loadPreferences()
         Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getInt(keyName)) + "'");        
       } else if (keyType == "boolean") {
         Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getBool(keyName)) + "'");        
+      } else if (keyType == "float") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getFloat(keyName)) + "'");        
       }       
     }
 
