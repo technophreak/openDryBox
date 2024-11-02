@@ -15,8 +15,8 @@ extern bool otaServiceStarted;
 extern bool wifiServiceStarted;
 
 extern uint64_t sensor0ReadMillis;
-extern float sensor0Temperature;
-extern float sensor0Humidity;
+extern String sensor0Temperature;
+extern String sensor0Humidity;
 
 JsonObject initSettingsDefinition(String allSettings);
 

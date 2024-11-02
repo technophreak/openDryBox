@@ -90,17 +90,18 @@ void DHTRead(uint8_t pin, uint8_t temperatureOffset, uint8_t humidityOffset)
     mySensor.setHumOffset(temperatureOffset);
     mySensor.setTempOffset(humidityOffset);
 
-    sensor0Temperature = float(mySensor.getTemperature());
-    sensor0Humidity = float(mySensor.getHumidity());
-
     mySensor.read();
-    Serial.print("Humidity: ");
-    Serial.print(mySensor.getHumidity(), 1);
-    Serial.print(" %");
-    Serial.print("\t");
+
+    sensor0Temperature = mySensor.getTemperature();
+    sensor0Humidity = mySensor.getHumidity();
+
     Serial.print("Temperature: ");
-    Serial.print(mySensor.getTemperature(), 1);
+    Serial.print(sensor0Temperature);
     Serial.print(" °C");
+    Serial.print("\t");
+    Serial.print("Humidity: ");
+    Serial.print(sensor0Humidity);
+    Serial.print(" %");
     Serial.println();
   }
 }

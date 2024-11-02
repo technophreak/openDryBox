@@ -37,8 +37,8 @@ bool otaServiceStarted = 0;
 bool wifiServiceStarted = false;
 
 uint64_t sensor0ReadMillis = millis();
-float sensor0Temperature = 0;
-float sensor0Humidity = 0;
+String sensor0Temperature = "0";
+String sensor0Humidity = "0";
 
 JsonObject initSettingsDefinition(String allSettings) {
   deserializeJson(jsonDoc, allSettings);
