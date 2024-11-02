@@ -12,10 +12,6 @@
 
 WebServer* webServer;
 
-uint64_t sensor0ReadMillis = millis();
-uint8_t sensor0Temperature = 0;
-uint8_t sensor0Humidity = 0;
-
 void setup() {
 
   // Init Serial 
@@ -92,8 +88,8 @@ void DHTRead(uint8_t pin, uint8_t temperatureOffset, uint8_t humidityOffset)
     mySensor.setHumOffset(temperatureOffset);
     mySensor.setTempOffset(humidityOffset);
 
-    sensor0Temperature = mySensor.getTemperature();
-    sensor0Humidity = mySensor.getHumidity();
+    sensor0Temperature = float(mySensor.getTemperature());
+    sensor0Humidity = float(mySensor.getHumidity());
 
     mySensor.read();
     Serial.print("Humidity: ");
@@ -134,6 +130,8 @@ void loadPreferences()
         myPreferences.putInt(keyName, kv.value()["default"].as<unsigned int>());
       } else if (keyType == "boolean") {
         myPreferences.putBool(keyName, kv.value()["default"].as<bool>());
+      } else if (keyType == "float") {
+        myPreferences.putFloat(keyName, kv.value()["default"].as<float>());
       } 
 
     } else { 
@@ -146,6 +144,8 @@ void loadPreferences()
         Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getInt(keyName)) + "'");        
       } else if (keyType == "boolean") {
         Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getBool(keyName)) + "'");        
+      } else if (keyType == "float") {
+        Serial.println("Preference for " + String(keyName) + " is set to '" + String(myPreferences.getFloat(keyName)) + "'");        
       }       
     }
 

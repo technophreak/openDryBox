@@ -74,6 +74,8 @@ void WebServer::getJsonSettings() {
       doc[keyName] = this->myPreferences->getInt(keyName);
     } else if (keyType == "boolean") {
       doc[keyName] = this->myPreferences->getBool(keyName);
+    } else if (keyType == "float") {
+      doc[keyName] = this->myPreferences->getFloat(keyName);
     }
 
   }
