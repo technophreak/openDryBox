@@ -32,9 +32,6 @@ const String allSettings = R"(
 DynamicJsonDocument jsonDoc(51200); // Max 50K
 JsonObject objSettings;
 
-// Declare Preferences
-Preferences myPreferences;
-
 // Set initial values
 bool otaServiceStarted = 0;
 bool wifiServiceStarted = false;

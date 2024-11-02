@@ -10,7 +10,9 @@
 // Load Web Server
 #include "webServer.h"
 
+// Declare instances
 WebServer* webServer;
+Preferences myPreferences; 
 
 void setup() {
 

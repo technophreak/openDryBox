@@ -11,9 +11,6 @@
 extern const String allSettings;
 extern JsonObject objSettings;
 
-// Declare Preferences
-extern Preferences myPreferences;
-
 extern bool otaServiceStarted;
 extern bool wifiServiceStarted;
 
