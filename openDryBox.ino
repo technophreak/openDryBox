@@ -1,6 +1,8 @@
+// Required libraries
+#include <dhtnew.h>
+
 #include <WiFi.h>
 #include <WiFiClient.h>
-
 #include <WiFiUdp.h>
 
 // Load Settings Definition
@@ -10,10 +12,13 @@
 
 WebServer* webServer;
 
+uint64_t sensor0ReadMillis = millis();
+uint8_t sensor0Temperature = 0;
+uint8_t sensor0Humidity = 0;
+
 void setup() {
 
   // Init Serial 
-
   Serial.begin(921600);
 
   // Display program version
@@ -47,6 +52,8 @@ void loop() {
     webServer->handleClient();
     ArduinoOTA.handle();
   }
+
+  DHTRead(myPreferences.getInt("sensor0_pin"), myPreferences.getInt("sensor0_toffset"), myPreferences.getInt("sensor0_hoffset"));
 }
 
 void otaUpdatesInit()
@@ -74,6 +81,31 @@ void otaUpdatesInit()
 
 }
 
+void DHTRead(uint8_t pin, uint8_t temperatureOffset, uint8_t humidityOffset)
+{
+  DHTNEW mySensor(pin);
+
+  if (millis() - sensor0ReadMillis > 2000) {
+
+    sensor0ReadMillis = millis();
+
+    mySensor.setHumOffset(temperatureOffset);
+    mySensor.setTempOffset(humidityOffset);
+
+    sensor0Temperature = mySensor.getTemperature();
+    sensor0Humidity = mySensor.getHumidity();
+
+    mySensor.read();
+    Serial.print("Humidity: ");
+    Serial.print(mySensor.getHumidity(), 1);
+    Serial.print(" %");
+    Serial.print("\t");
+    Serial.print("Temperature: ");
+    Serial.print(mySensor.getTemperature(), 1);
+    Serial.print(" °C");
+    Serial.println();
+  }
+}
 
 
 /* Load preferences */

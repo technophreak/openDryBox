@@ -15,6 +15,14 @@ const String allSettings = R"(
     "network_dns_2": { "type": "string", "default": "" },
     "webserver_port": { "type": "integer", "default": 80 },
     "ota_password": { "type": "string", "default": "@rduin0", "obfuscate": true },
+    
+    // DHT22 Sensor on Liligo T-Display S3
+    "sensor0_pin": { "type": "integer", "default": 16 },
+    "sensor0_type": { "type": "string", "default": "DHT22" },
+    "sensor0_toffset": { "type": "integer", "default": -3.5 },
+    "sensor0_hoffset": { "type": "integer", "default": 10 },
+    
+
   }
 )";
 

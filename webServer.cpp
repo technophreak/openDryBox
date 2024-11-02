@@ -16,6 +16,8 @@ void WebServer::getHomePage() {
   htmlPage += "<form>";
 
   htmlPage += "<fieldset><legend>Status</legend>";
+  htmlPage += "Sensor 0 Temperature: " + String(sensor0Temperature) + " °C<br/>";
+  htmlPage += "Sensor 0 Humidity: " + String(sensor0Humidity) + " %<br/>";
   htmlPage += "</fieldset>";
   
   htmlPage += "<br/>";
