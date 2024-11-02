@@ -26,6 +26,7 @@ const String allSettings = R"(
     "sensor0_toffset": { "type": "float", "default": -3.5 },
     "sensor0_hoffset": { "type": "float", "default": 10 },
     
+    "mySpecialValue": { "type": "string", "default": ""}
   }
 )";
 

@@ -113,6 +113,9 @@ void WebServer::setSettings() {
     const char* cArgName = argName.c_str();     
     JsonDocument setting = this->objSettings[cArgName];
 
+    Serial.println(argName);
+    Serial.println("Setting: " + setting["default"].as<String>());
+
     // Find out if definition exists
     if (!this->objSettings[cArgName]) {
       html += "<i style='color:red;'>" + argName + " - Invalid setting</i><br/>";
