@@ -17,6 +17,7 @@ const String allSettings = R"(
     "network_dns_2": { "type": "string", "default": "" },
     
     "webserver_port": { "type": "integer", "default": 80 },
+    "ajax_timeout": { "type": "integer", "default": 10, "label": "AJAX Timeout in seconds", "description": "Timeout for web interface API calls"},
     "ota_password": { "type": "string", "default": "pl@tformi0", "obfuscate": true },
     
     "comments": "DHT22 Sensor",
