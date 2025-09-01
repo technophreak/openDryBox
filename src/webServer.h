@@ -18,6 +18,7 @@ class WebServer {
   private:
     void initRoutes();
     void getHomePage();
+    void getSettingsPage();
     void getJsonStatus();
     void getJsonSettings();
     void setSettings();
