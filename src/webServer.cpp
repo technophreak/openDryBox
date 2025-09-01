@@ -30,10 +30,12 @@ void WebServer::getHomePage() {
   htmlPage += "<h2 class='h5 text-secondary mb-4'>" + String(PROGRAM_NAME) + " <small class='text-muted'>" + String(PROGRAM_VERSION) + "</small></h2>";
   htmlPage += "</div></div>";
 
-  // Status Card
+  // Top Row: Status and Presets
   htmlPage += "<div class='row mb-4'>";
-  htmlPage += "<div class='col-md-6'>";
-  htmlPage += "<div class='card'>";
+  
+  // Status Card
+  htmlPage += "<div class='col-md-6 d-flex'>";
+  htmlPage += "<div class='card h-100 w-100'>";
   htmlPage += "<div class='card-header bg-primary text-white'>";
   htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-thermometer'></i> Status <small id='lastUpdate' class='text-white-50'></small></h5>";
   htmlPage += "</div>";
@@ -61,9 +63,29 @@ void WebServer::getHomePage() {
   htmlPage += "</div>";
   htmlPage += "</div>";
 
+  // Presets Card
+  htmlPage += "<div class='col-md-6 d-flex'>";
+  htmlPage += "<div class='card h-100 w-100'>";
+  htmlPage += "<div class='card-header bg-success text-white'>";
+  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-bookmark'></i> Presets</h5>";
+  htmlPage += "</div>";
+  htmlPage += "<div class='card-body'>";
+  htmlPage += "<p class='text-muted'>Quick access to predefined settings configurations.</p>";
+  htmlPage += "<div class='text-center text-muted'>";
+  htmlPage += "<i class='bi bi-plus-circle' style='font-size: 2rem;'></i>";
+  htmlPage += "<p class='mt-2'>Coming Soon</p>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
+
+  // Bottom Row: Settings and OTA Service
+  htmlPage += "<div class='row mb-4'>";
+  
   // Settings Card
-  htmlPage += "<div class='col-md-6'>";
-  htmlPage += "<div class='card'>";
+  htmlPage += "<div class='col-md-6 d-flex'>";
+  htmlPage += "<div class='card h-100 w-100'>";
   htmlPage += "<div class='card-header bg-secondary text-white'>";
   htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-gear'></i> Settings</h5>";
   htmlPage += "</div>";
@@ -74,16 +96,15 @@ void WebServer::getHomePage() {
   htmlPage += "</div>";
   htmlPage += "</div>";
   htmlPage += "</div>";
-  htmlPage += "</div>";
 
-  // OTA Update Card
-  htmlPage += "<div class='row mb-4'>";
-  htmlPage += "<div class='col-12'>";
-  htmlPage += "<div class='card'>";
+  // OTA Service Card
+  htmlPage += "<div class='col-md-6 d-flex'>";
+  htmlPage += "<div class='card h-100 w-100'>";
   htmlPage += "<div class='card-header bg-warning text-dark'>";
   htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-cloud-arrow-up'></i> OTA Service <span id='otaStatus' class='badge bg-secondary'>--</span></h5>";
   htmlPage += "</div>";
   htmlPage += "<div class='card-body'>";
+  htmlPage += "<p class='text-muted'>Over-the-air firmware updates.</p>";
   htmlPage += "<div class='btn-group' role='group'>";
   htmlPage += "<button type='button' class='btn btn-outline-success btn-sm' onclick='otaAction(\"otaStart\")'>Start OTA</button>";
   htmlPage += "<button type='button' class='btn btn-outline-danger btn-sm' onclick='otaAction(\"otaStop\")'>Stop OTA</button>";
