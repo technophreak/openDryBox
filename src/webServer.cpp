@@ -391,7 +391,7 @@ void WebServer::setSettings() {
           results += "<span class='text-success'>Updated to: <code>" + String(newValue) + "</code></span>";
           if (oldValue != newValue) changedCount++;
       }
-      else if (setting["type"].as<String>() == "bool") {
+      else if (setting["type"].as<String>() == "boolean") {
           bool oldValue = this->myPreferences->getBool(cArgName);
           bool newValue;
           if (useDefault) { newValue = this->objSettings[cArgName]["default"].as<bool>(); }
