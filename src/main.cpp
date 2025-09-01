@@ -15,9 +15,20 @@
 // Load Application Functions
 #include "appFunctions.h"
 
-WebServer* webServer;
+// Program constants definition
+const char* PROGRAM_NAME = "openDryBox";
+const char* PROGRAM_VERSION = "v0.0.4";
+
+// Application variables definition
 Preferences myPreferences;
+WebServer* webServer = nullptr;
 bool wifiServiceStarted = false;
+bool otaServiceStarted = false;
+uint64_t sensor0ReadMillis = millis();
+String sensor0Temperature = "0";
+String sensor0Humidity = "0";
+bool outputHeat = false;
+bool outputFan = false;
 
 void setup() {
 

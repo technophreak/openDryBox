@@ -40,18 +40,6 @@ const String allSettings = R"(
 JsonDocument jsonDoc;
 JsonObject objSettings;
 
-// Set initial values
-bool otaServiceStarted = 0;
-extern bool wifiServiceStarted;
-
-uint64_t sensor0ReadMillis = millis();
-String sensor0Temperature = "0";
-String sensor0Humidity = "0";
-
-bool outputHeat = false;
-bool outputFan = false;
-
-
 JsonObject initSettingsDefinition(String allSettings) {
   deserializeJson(jsonDoc, allSettings);
   return jsonDoc.as<JsonObject>();

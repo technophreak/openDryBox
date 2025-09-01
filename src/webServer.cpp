@@ -1,7 +1,6 @@
 #include "webServer.h"
 #include <ArduinoOTA.h>
 
-
 // Serving Home Page
 void WebServer::getHomePage() {
 

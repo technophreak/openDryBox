@@ -8,6 +8,7 @@
 #include <ESPmDNS.h>
 
 #include "allSettings.h"
+#include "appFunctions.h"
 
 class WebServer {
   public:

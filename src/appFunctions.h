@@ -6,9 +6,27 @@
 #include <Preferences.h>
 #include "allSettings.h"
 
-// External variables that need to be accessible
+// Forward declaration
+class WebServer;
+
+// Program constants (defined in main.cpp)
+extern const char* PROGRAM_NAME;
+extern const char* PROGRAM_VERSION;
+
+// Core application variables
 extern Preferences myPreferences;
+extern WebServer* webServer;
+
+// Service status flags
 extern bool wifiServiceStarted;
+extern bool otaServiceStarted;
+
+// Sensor and output variables
+extern uint64_t sensor0ReadMillis;
+extern String sensor0Temperature;
+extern String sensor0Humidity;
+extern bool outputHeat;
+extern bool outputFan;
 
 // Function declarations
 void loadPreferences();
