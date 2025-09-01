@@ -7,7 +7,7 @@ void WebServer::getHomePage() {
   unsigned long currentMilliseconds = millis();
 
   String htmlPage;
-  htmlPage.reserve(2048);               // prevent ram fragmentation - increased for Bootstrap
+  htmlPage.reserve(4096);               // prevent ram fragmentation - increased for Bootstrap and JavaScript
   htmlPage = F("<!DOCTYPE html>"
     "<html lang='en'>"
     "<head>"
@@ -16,9 +16,91 @@ void WebServer::getHomePage() {
     "<meta http-equiv='refresh' content='5'>"
     "<title>openDryBox</title>"
     "<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>"
-    "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>"
+    "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>");
+
+  // Add JavaScript functions
+  htmlPage += F("<script>"
+    "function showToast(message, type = 'info') {"
+    "  const toastContainer = document.getElementById('toastContainer');"
+    "  const toastId = 'toast-' + Date.now();"
+    "  const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';"
+    "  const toastHTML = '<div id=\"' + toastId + '\" class=\"toast ' + bgClass + ' text-white\" role=\"alert\">' +"
+    "    '<div class=\"toast-body\">' + message + '</div></div>';"
+    "  toastContainer.insertAdjacentHTML('beforeend', toastHTML);"
+    "  const toast = new bootstrap.Toast(document.getElementById(toastId));"
+    "  toast.show();"
+    "  setTimeout(() => document.getElementById(toastId).remove(), 5000);"
+    "}");
+
+  htmlPage += F("function otaAction(action, confirmMsg = null) {"
+    "  if (confirmMsg && !confirm(confirmMsg)) return;"
+    "  const btn = event.target;"
+    "  const originalText = btn.textContent;"
+    "  btn.disabled = true;"
+    "  btn.textContent = 'Processing...';"
+    "  fetch('/' + action)"
+    "    .then(response => {"
+    "      console.log('Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));"
+    "      if (!response.ok) {"
+    "        throw new Error('HTTP ' + response.status + ': ' + response.statusText);"
+    "      }"
+    "      const contentType = response.headers.get('content-type');"
+    "      if (contentType && contentType.includes('application/json')) {"
+    "        return response.json();"
+    "      } else {"
+    "        return response.text().then(text => {"
+    "          console.log('Non-JSON response:', text);"
+    "          throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));"
+    "        });"
+    "      }"
+    "    })"
+    "    .then(data => {"
+    "      console.log('Parsed data:', data);"
+    "      if (data.success) {"
+    "        showToast(data.message, 'success');"
+    "        if (data.otaStatus) {"
+    "          const statusBadge = document.getElementById('otaStatus');"
+    "          if (statusBadge) {"
+    "            statusBadge.textContent = data.otaStatus === 'enabled' ? 'Enabled' : 'Disabled';"
+    "            statusBadge.className = 'badge ' + (data.otaStatus === 'enabled' ? 'bg-success' : 'bg-danger');"
+    "          }"
+    "        }"
+    "        if (action === 'espRestart') {"
+    "          showToast('Device will restart in a few seconds...', 'info');"
+    "          setTimeout(() => {"
+    "            showToast('Attempting to reconnect...', 'info');"
+    "            setTimeout(() => location.reload(), 3000);"
+    "          }, 5000);"
+    "        }"
+    "      } else {"
+    "        showToast('Error: ' + (data.message || 'Unknown error'), 'error');"
+    "      }"
+    "    })"
+    "    .catch(error => {"
+    "      console.error('AJAX Error:', error);"
+    "      showToast('Error: ' + error.message, 'error');"
+    "    })"
+    "    .finally(() => {"
+    "      btn.disabled = false;"
+    "      btn.textContent = originalText;"
+    "    });"
+    "}");
+
+  htmlPage += F("function updateStatus() {"
+    "  fetch('/getJsonStatus')"
+    "    .then(response => response.json())"
+    "    .then(data => {"
+    "      console.log('Status updated:', data);"
+    "    })"
+    "    .catch(error => console.log('Status update failed:', error));"
+    "}"
+    "setInterval(updateStatus, 30000);"
+    "</script>"
     "</head>"
     "<body class='bg-light'>");
+
+  // Toast container
+  htmlPage += "<div id='toastContainer' class='toast-container position-fixed top-0 end-0 p-3' style='z-index: 1055;'></div>";
 
   // Header
   htmlPage += "<div class='container mt-4'>";
@@ -68,7 +150,7 @@ void WebServer::getHomePage() {
   htmlPage += "<div class='card-body'>";
   htmlPage += "<p class='text-muted'>Configure device settings and parameters.</p>";
   htmlPage += "<a href='/settings' class='btn btn-primary'>Open Settings</a>";
-  htmlPage += "<button class='btn btn-outline-secondary ms-2' onclick='window.location.href=\"/getJsonSettings\"'>View JSON</button>";
+  htmlPage += "<a href='/getJsonSettings' target='_blank' class='btn btn-outline-secondary ms-2'>View JSON</a>";
   htmlPage += "</div>";
   htmlPage += "</div>";
   htmlPage += "</div>";
@@ -83,11 +165,11 @@ void WebServer::getHomePage() {
   htmlPage += "</div>";
   htmlPage += "<div class='card-body'>";
   htmlPage += "<p class='mb-2'><strong>OTA Service:</strong> ";
-  htmlPage += "<span class='badge " + String(otaServiceStarted ? "bg-success" : "bg-danger") + "'>" + String(otaServiceStarted ? "Enabled" : "Disabled") + "</span></p>";
+  htmlPage += "<span id='otaStatus' class='badge " + String(otaServiceStarted ? "bg-success" : "bg-danger") + "'>" + String(otaServiceStarted ? "Enabled" : "Disabled") + "</span></p>";
   htmlPage += "<div class='btn-group' role='group'>";
-  htmlPage += "<button type='button' class='btn btn-outline-success btn-sm' onclick='window.location.href=\"/otaStart\"'>Start OTA</button>";
-  htmlPage += "<button type='button' class='btn btn-outline-danger btn-sm' onclick='window.location.href=\"/otaStop\"'>Stop OTA</button>";
-  htmlPage += "<button type='button' class='btn btn-outline-warning btn-sm' onclick='if(confirm(\"Are you sure you want to restart?\")) window.location.href=\"/espRestart\"'>Restart Device</button>";
+  htmlPage += "<button type='button' class='btn btn-outline-success btn-sm' onclick='otaAction(\"otaStart\")'>Start OTA</button>";
+  htmlPage += "<button type='button' class='btn btn-outline-danger btn-sm' onclick='otaAction(\"otaStop\")'>Stop OTA</button>";
+  htmlPage += "<button type='button' class='btn btn-outline-warning btn-sm' onclick='otaAction(\"espRestart\", \"Are you sure you want to restart the device?\")'>Restart Device</button>";
   htmlPage += "</div>";
   htmlPage += "</div>";
   htmlPage += "</div>";
@@ -445,12 +527,32 @@ void WebServer::otaStart() {
   Serial.println("\nOTA Service Started");
   otaServiceStarted = true;
   ArduinoOTA.begin();
+  
+  // Return JSON response for AJAX
+  JsonDocument doc;
+  doc["success"] = true;
+  doc["message"] = "OTA service started successfully";
+  doc["otaStatus"] = "enabled";
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
 }
 
 void WebServer::otaStop() {
   Serial.println("\nOTA Service Stopped");
   otaServiceStarted = false;
   ArduinoOTA.end();
+  
+  // Return JSON response for AJAX
+  JsonDocument doc;
+  doc["success"] = true;
+  doc["message"] = "OTA service stopped successfully";
+  doc["otaStatus"] = "disabled";
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
 }
 
 // Manage not found URL
@@ -470,6 +572,19 @@ void WebServer::handleNotFound() {
 } 
 
 void WebServer::espRestart() {
+  // Return JSON response for AJAX first
+  JsonDocument doc;
+  doc["success"] = true;
+  doc["message"] = "Device restart initiated";
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
+  
+  // Add a small delay to ensure response is sent before restart
+  delay(100);
+  
+  Serial.println("\nRestarting ESP32...");
   ESP.restart();
 }
 
