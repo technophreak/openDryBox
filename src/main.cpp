@@ -1,6 +1,6 @@
 // Program constants definition
 const char* PROGRAM_NAME = "openDryBox";
-const char* PROGRAM_VERSION = "v0.0.8";
+const char* PROGRAM_VERSION = "v0.0.9";
 
 // Load required libraries
 #include <Arduino.h>
@@ -67,7 +67,11 @@ void loop() {
   // Handle client requests and OTA updates
   if (wifiServiceStarted) {
     webServer->handleClient();
-    ArduinoOTA.handle();
+
+    // Handle OTA updates if enabled
+    if (otaServiceStarted) {
+      ArduinoOTA.handle();
+    }
   }
 
 }
