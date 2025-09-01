@@ -146,12 +146,12 @@ void WebServer::setSettings() {
         this->myPreferences->putInt(cArgName, newValue);
         html += " - New value: " + String(newValue) + "<br/>";
     }
-    else if (setting["type"].as<String>() == "boolean") {
+    else if (setting["type"].as<String>() == "bool") {
         bool newValue;
         html += "Current value: " + String(this->myPreferences->getBool(cArgName));
         if (useDefault) { newValue = this->objSettings[cArgName]["default"].as<bool>(); }
-        else { newValue = (this->restServer->arg(i) == "1" || this->restServer->arg(i) == "true" ? true : false); }
-        this->myPreferences->putBool(cArgName, newValue);
+        else { newValue = this->restServer->arg(i).toInt(); }
+        this->myPreferences->putInt(cArgName, newValue);
         html += " - New value: " + String(newValue) + "<br/>";
     }
     else if (setting["type"].as<String>() == "float") {
