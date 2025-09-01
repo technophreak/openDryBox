@@ -1,4 +1,5 @@
 #include "webServer.h"
+#include "appFunctions.h"
 #include <ArduinoOTA.h>
 
 // Serving Home Page
@@ -26,8 +27,8 @@ void WebServer::getHomePage() {
   htmlPage += "<div class='container mt-4'>";
   htmlPage += "<div class='row'>";
   htmlPage += "<div class='col-12'>";
-  htmlPage += "<h1 class='display-4 text-primary'>" + this->myPreferences->getString("device_name") + "</h1>";
-  htmlPage += "<h2 class='h5 text-secondary mb-4'>" + String(PROGRAM_NAME) + " <small class='text-muted'>" + String(PROGRAM_VERSION) + "</small></h2>";
+  htmlPage += "<h1 class='display-4 text-primary' id='deviceName'>Loading...</h1>";
+  htmlPage += "<h2 class='h5 text-secondary mb-4'><span id='programName'>" + String(PROGRAM_NAME) + "</span> <small class='text-muted' id='programVersion'>" + String(PROGRAM_VERSION) + "</small></h2>";
   htmlPage += "</div></div>";
 
   // Top Row: Status and Presets
@@ -127,6 +128,7 @@ void WebServer::getHomePage() {
   htmlPage += "let fetchTimeout = " + String(this->myPreferences->getInt("ajax_timeout") * 1000) + ";"; // Convert seconds to milliseconds
   htmlPage += "let lastSuccessfulUpdate = null;";
   htmlPage += "let reconnectTimer = null;";
+  htmlPage += "let currentVersion = '" + String(PROGRAM_VERSION) + "';"; // Track current version for reload detection
   htmlPage += "function fetchWithTimeout(url, options = {}) {";
   htmlPage += "  return Promise.race([";
   htmlPage += "    fetch(url, options),";
@@ -196,6 +198,20 @@ void WebServer::getHomePage() {
   htmlPage += "    const now = new Date();";
   htmlPage += "    lastSuccessfulUpdate = now;";
   htmlPage += "    updateConnectionStatus('Connected', 'Last update: ' + now.toLocaleString(), true);";
+  htmlPage += "    const deviceNameElement = document.getElementById('deviceName');";
+  htmlPage += "    if (deviceNameElement && data.device_name !== undefined) deviceNameElement.textContent = data.device_name;";
+  htmlPage += "    const programNameElement = document.getElementById('programName');";
+  htmlPage += "    if (programNameElement && data.program_name !== undefined) programNameElement.textContent = data.program_name;";
+  htmlPage += "    const programVersionElement = document.getElementById('programVersion');";
+  htmlPage += "    if (programVersionElement && data.program_version !== undefined) {";
+  htmlPage += "      if (currentVersion !== data.program_version) {";
+  htmlPage += "        if (confirm('Application version has changed from ' + currentVersion + ' to ' + data.program_version + '. Reload the page to ensure you have the latest interface?')) {";
+  htmlPage += "          location.reload();";
+  htmlPage += "        }";
+  htmlPage += "        currentVersion = data.program_version;";
+  htmlPage += "      }";
+  htmlPage += "      programVersionElement.textContent = data.program_version;";
+  htmlPage += "    }";
   htmlPage += "    const tempElement = document.getElementById('temperature');";
   htmlPage += "    if (tempElement && data.sensor0_temperature !== undefined) tempElement.textContent = data.sensor0_temperature + '°C';";
   htmlPage += "    const humidityElement = document.getElementById('humidity');";
@@ -335,7 +351,11 @@ void WebServer::getSettingsPage() {
     if (!editable) continue;
     
     htmlPage += "<div class='mb-3'>";
-    htmlPage += "<label for='" + String(cKeyName) + "' class='form-label'>" + keyLabel + "</label>";
+    
+    // For non-boolean fields, add a label above the input
+    if (keyType != "boolean") {
+      htmlPage += "<label for='" + String(cKeyName) + "' class='form-label'>" + keyLabel + "</label>";
+    }
     
     if (keyType == "string") {
       String currentValue = kv.value()["obfuscate"] ? "**********" : this->myPreferences->getString(cKeyName);
@@ -391,6 +411,8 @@ void WebServer::getJsonStatus() {
 
   // Device information
   doc["device_name"] = this->myPreferences->getString("device_name");
+  doc["program_name"] = PROGRAM_NAME;
+  doc["program_version"] = PROGRAM_VERSION;
   doc["wifi_signal_strength"] = WiFi.RSSI();
   doc["board_free_heap"] = ESP.getFreeHeap();
   doc["uptime"] = currentMilliseconds;
@@ -497,11 +519,17 @@ void WebServer::setSettings() {
 
     for (uint8_t i = 0; i < this->restServer->args(); i++) {
 
-      results += "<div class='mb-3 p-3 border rounded'><strong>" + this->restServer->argName(i) + "</strong><br/>";
-
       String argName = this->restServer->argName(i);
       const char* cArgName = argName.c_str();     
       JsonDocument setting = this->objSettings[cArgName];
+      
+      // Get the user-friendly label, fallback to setting name if no label exists
+      String displayName = setting["label"] ? setting["label"].as<String>() : argName;
+      results += "<div class='mb-3 p-3 border rounded'><strong>" + displayName + "</strong>";
+      if (setting["label"]) {
+        results += "<br/><small class='text-muted'>(" + argName + ")</small>";
+      }
+      results += "<br/>";
 
       // Find out if definition exists
       if (!this->objSettings[cArgName]) {
