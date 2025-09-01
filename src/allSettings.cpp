@@ -17,7 +17,7 @@ const String allSettings = R"(
     "network_dns_2": { "type": "string", "default": "" },
     
     "webserver_port": { "type": "integer", "default": 80 },
-    "ota_password": { "type": "string", "default": "@rduin0", "obfuscate": true },
+    "ota_password": { "type": "string", "default": "pl@tformi0", "obfuscate": true },
     
     "comments": "DHT22 Sensor",
     "sensor0_name": { "type": "string", "default": "Internal", "editable": false },
