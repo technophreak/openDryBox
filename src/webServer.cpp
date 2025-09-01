@@ -13,91 +13,11 @@ void WebServer::getHomePage() {
     "<head>"
     "<meta charset='utf-8'>"
     "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-    "<meta http-equiv='refresh' content='5'>"
     "<title>openDryBox</title>"
     "<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>"
-    "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>");
-
-  // Add JavaScript functions
-  htmlPage += F("<script>"
-    "function showToast(message, type = 'info') {"
-    "  const toastContainer = document.getElementById('toastContainer');"
-    "  const toastId = 'toast-' + Date.now();"
-    "  const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';"
-    "  const toastHTML = '<div id=\"' + toastId + '\" class=\"toast ' + bgClass + ' text-white\" role=\"alert\">' +"
-    "    '<div class=\"toast-body\">' + message + '</div></div>';"
-    "  toastContainer.insertAdjacentHTML('beforeend', toastHTML);"
-    "  const toast = new bootstrap.Toast(document.getElementById(toastId));"
-    "  toast.show();"
-    "  setTimeout(() => document.getElementById(toastId).remove(), 5000);"
-    "}");
-
-  htmlPage += F("function otaAction(action, confirmMsg = null) {"
-    "  if (confirmMsg && !confirm(confirmMsg)) return;"
-    "  const btn = event.target;"
-    "  const originalText = btn.textContent;"
-    "  btn.disabled = true;"
-    "  btn.textContent = 'Processing...';"
-    "  fetch('/' + action)"
-    "    .then(response => {"
-    "      console.log('Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));"
-    "      if (!response.ok) {"
-    "        throw new Error('HTTP ' + response.status + ': ' + response.statusText);"
-    "      }"
-    "      const contentType = response.headers.get('content-type');"
-    "      if (contentType && contentType.includes('application/json')) {"
-    "        return response.json();"
-    "      } else {"
-    "        return response.text().then(text => {"
-    "          console.log('Non-JSON response:', text);"
-    "          throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));"
-    "        });"
-    "      }"
-    "    })"
-    "    .then(data => {"
-    "      console.log('Parsed data:', data);"
-    "      if (data.success) {"
-    "        showToast(data.message, 'success');"
-    "        if (data.otaStatus) {"
-    "          const statusBadge = document.getElementById('otaStatus');"
-    "          if (statusBadge) {"
-    "            statusBadge.textContent = data.otaStatus === 'enabled' ? 'Enabled' : 'Disabled';"
-    "            statusBadge.className = 'badge ' + (data.otaStatus === 'enabled' ? 'bg-success' : 'bg-danger');"
-    "          }"
-    "        }"
-    "        if (action === 'espRestart') {"
-    "          showToast('Device will restart in a few seconds...', 'info');"
-    "          setTimeout(() => {"
-    "            showToast('Attempting to reconnect...', 'info');"
-    "            setTimeout(() => location.reload(), 3000);"
-    "          }, 5000);"
-    "        }"
-    "      } else {"
-    "        showToast('Error: ' + (data.message || 'Unknown error'), 'error');"
-    "      }"
-    "    })"
-    "    .catch(error => {"
-    "      console.error('AJAX Error:', error);"
-    "      showToast('Error: ' + error.message, 'error');"
-    "    })"
-    "    .finally(() => {"
-    "      btn.disabled = false;"
-    "      btn.textContent = originalText;"
-    "    });"
-    "}");
-
-  htmlPage += F("function updateStatus() {"
-    "  fetch('/getJsonStatus')"
-    "    .then(response => response.json())"
-    "    .then(data => {"
-    "      console.log('Status updated:', data);"
-    "    })"
-    "    .catch(error => console.log('Status update failed:', error));"
-    "}"
-    "setInterval(updateStatus, 30000);"
-    "</script>"
-    "</head>"
-    "<body class='bg-light'>");
+    "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>"
+    "</head>");
+  htmlPage += F("<body class='bg-light'>");
 
   // Toast container
   htmlPage += "<div id='toastContainer' class='toast-container position-fixed top-0 end-0 p-3' style='z-index: 1055;'></div>";
@@ -106,8 +26,8 @@ void WebServer::getHomePage() {
   htmlPage += "<div class='container mt-4'>";
   htmlPage += "<div class='row'>";
   htmlPage += "<div class='col-12'>";
-  htmlPage += "<h1 class='display-4 text-primary'>" + String(PROGRAM_NAME) + " <small class='text-muted'>" + String(PROGRAM_VERSION) + "</small></h1>";
-  htmlPage += "<h2 class='h4 text-secondary mb-4'>[" + this->myPreferences->getString("device_name") + "]</h2>";
+  htmlPage += "<h1 class='display-4 text-primary'>" + this->myPreferences->getString("device_name") + "</h1>";
+  htmlPage += "<h2 class='h5 text-secondary mb-4'>" + String(PROGRAM_NAME) + " <small class='text-muted'>" + String(PROGRAM_VERSION) + "</small></h2>";
   htmlPage += "</div></div>";
 
   // Status Card
@@ -115,26 +35,26 @@ void WebServer::getHomePage() {
   htmlPage += "<div class='col-md-6'>";
   htmlPage += "<div class='card'>";
   htmlPage += "<div class='card-header bg-primary text-white'>";
-  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-thermometer'></i> Status</h5>";
+  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-thermometer'></i> Status <small id='lastUpdate' class='text-white-50'></small></h5>";
   htmlPage += "</div>";
   htmlPage += "<div class='card-body'>";
   htmlPage += "<div class='row'>";
   htmlPage += "<div class='col-6'>";
-  htmlPage += "<p class='mb-2'><strong>Temperature:</strong><br><span class='h5 text-info'>" + String(sensor0Temperature) + " °C</span></p>";
+  htmlPage += "<p class='mb-2'><strong>Temperature:</strong><br><span id='temperature' class='h5 text-info'>--°C</span></p>";
   htmlPage += "</div>";
   htmlPage += "<div class='col-6'>";
-  htmlPage += "<p class='mb-2'><strong>Humidity:</strong><br><span class='h5 text-info'>" + String(sensor0Humidity) + " %</span></p>";
+  htmlPage += "<p class='mb-2'><strong>Humidity:</strong><br><span id='humidity' class='h5 text-info'>--%</span></p>";
   htmlPage += "</div>";
   htmlPage += "</div>";
   htmlPage += "<hr>";
   htmlPage += "<div class='row'>";
   htmlPage += "<div class='col-6'>";
   htmlPage += "<p class='mb-1'><strong>Heat:</strong></p>";
-  htmlPage += "<span class='badge " + String(outputHeat ? "bg-success" : "bg-secondary") + "'>" + String(outputHeat ? "On" : "Off") + "</span>";
+  htmlPage += "<span id='heatStatus' class='badge bg-secondary'>--</span>";
   htmlPage += "</div>";
   htmlPage += "<div class='col-6'>";
   htmlPage += "<p class='mb-1'><strong>Fan:</strong></p>";
-  htmlPage += "<span class='badge " + String(outputFan ? "bg-success" : "bg-secondary") + "'>" + String(outputFan ? "On" : "Off") + "</span>";
+  htmlPage += "<span id='fanStatus' class='badge bg-secondary'>--</span>";
   htmlPage += "</div>";
   htmlPage += "</div>";
   htmlPage += "</div>";
@@ -161,11 +81,9 @@ void WebServer::getHomePage() {
   htmlPage += "<div class='col-12'>";
   htmlPage += "<div class='card'>";
   htmlPage += "<div class='card-header bg-warning text-dark'>";
-  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-cloud-arrow-up'></i> OTA Update</h5>";
+  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-cloud-arrow-up'></i> OTA Service <span id='otaStatus' class='badge bg-secondary'>--</span></h5>";
   htmlPage += "</div>";
   htmlPage += "<div class='card-body'>";
-  htmlPage += "<p class='mb-2'><strong>OTA Service:</strong> ";
-  htmlPage += "<span id='otaStatus' class='badge " + String(otaServiceStarted ? "bg-success" : "bg-danger") + "'>" + String(otaServiceStarted ? "Enabled" : "Disabled") + "</span></p>";
   htmlPage += "<div class='btn-group' role='group'>";
   htmlPage += "<button type='button' class='btn btn-outline-success btn-sm' onclick='otaAction(\"otaStart\")'>Start OTA</button>";
   htmlPage += "<button type='button' class='btn btn-outline-danger btn-sm' onclick='otaAction(\"otaStop\")'>Stop OTA</button>";
@@ -177,6 +95,51 @@ void WebServer::getHomePage() {
   htmlPage += "</div>";
 
   htmlPage += "</div>"; // Close container
+  
+  // Add complete JavaScript at the end
+  htmlPage += "<script>";
+  htmlPage += "function showToast(message, type = 'info') {";
+  htmlPage += "  const toastContainer = document.getElementById('toastContainer');";
+  htmlPage += "  const toastId = 'toast-' + Date.now();";
+  htmlPage += "  const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';";
+  htmlPage += "  const toastHTML = '<div id=\"' + toastId + '\" class=\"toast ' + bgClass + ' text-white\" role=\"alert\">' + '<div class=\"toast-body\">' + message + '</div></div>';";
+  htmlPage += "  toastContainer.insertAdjacentHTML('beforeend', toastHTML);";
+  htmlPage += "  const toast = new bootstrap.Toast(document.getElementById(toastId));";
+  htmlPage += "  toast.show();";
+  htmlPage += "  setTimeout(() => document.getElementById(toastId).remove(), 5000);";
+  htmlPage += "}";
+  htmlPage += "function otaAction(action, confirmMsg = null) {";
+  htmlPage += "  if (confirmMsg && !confirm(confirmMsg)) return;";
+  htmlPage += "  const btn = event.target;";
+  htmlPage += "  const originalText = btn.textContent;";
+  htmlPage += "  btn.disabled = true;";
+  htmlPage += "  btn.textContent = 'Processing...';";
+  htmlPage += "  fetch('/' + action).then(response => response.json()).then(data => {";
+  htmlPage += "    showToast(data.message, data.status);";
+  htmlPage += "    if (data.status === 'success' && action === 'espRestart') setTimeout(() => location.reload(), 3000);";
+  htmlPage += "  }).catch(error => showToast('Error: ' + error.message, 'error')).finally(() => {";
+  htmlPage += "    btn.disabled = false; btn.textContent = originalText;";
+  htmlPage += "  });";
+  htmlPage += "}";
+  htmlPage += "function updateStatus() {";
+  htmlPage += "  fetch('/getJsonStatus').then(response => response.json()).then(data => {";
+  htmlPage += "    const tempElement = document.getElementById('temperature');";
+  htmlPage += "    if (tempElement && data.sensor0_temperature !== undefined) tempElement.textContent = data.sensor0_temperature + '°C';";
+  htmlPage += "    const humidityElement = document.getElementById('humidity');";
+  htmlPage += "    if (humidityElement && data.sensor0_humidity !== undefined) humidityElement.textContent = data.sensor0_humidity + '%';";
+  htmlPage += "    const heatElement = document.getElementById('heatStatus');";
+  htmlPage += "    if (heatElement && data.output_heat !== undefined) { heatElement.textContent = data.output_heat ? 'ON' : 'OFF'; heatElement.className = 'badge ' + (data.output_heat ? 'bg-danger' : 'bg-secondary'); }";
+  htmlPage += "    const fanElement = document.getElementById('fanStatus');";
+  htmlPage += "    if (fanElement && data.output_fan !== undefined) { fanElement.textContent = data.output_fan ? 'ON' : 'OFF'; fanElement.className = 'badge ' + (data.output_fan ? 'bg-primary' : 'bg-secondary'); }";
+  htmlPage += "    const otaElement = document.getElementById('otaStatus');";
+  htmlPage += "    if (otaElement && data.ota_service_started !== undefined) { otaElement.textContent = data.ota_service_started ? 'Active' : 'Inactive'; otaElement.className = 'badge ' + (data.ota_service_started ? 'bg-success' : 'bg-secondary'); }";
+  htmlPage += "    const lastUpdateElement = document.getElementById('lastUpdate');";
+  htmlPage += "    if (lastUpdateElement) { const now = new Date(); lastUpdateElement.textContent = '(Updated: ' + now.toLocaleTimeString() + ')'; }";
+  htmlPage += "  }).catch(error => { const lastUpdateElement = document.getElementById('lastUpdate'); if (lastUpdateElement) { lastUpdateElement.textContent = '(Update failed)'; lastUpdateElement.className = 'text-danger'; } });";
+  htmlPage += "}";
+  htmlPage += "setInterval(updateStatus, 3000);";
+  htmlPage += "document.addEventListener('DOMContentLoaded', updateStatus);";
+  htmlPage += "</script>";
 
   htmlPage += F("</body></html>"
     "\r\n");
@@ -339,9 +302,25 @@ void WebServer::getJsonStatus() {
 
   JsonDocument doc;
 
+  // Device information
   doc["device_name"] = this->myPreferences->getString("device_name");
-  doc["wifi_signal_strengh"] = WiFi.RSSI();
+  doc["wifi_signal_strength"] = WiFi.RSSI();
   doc["board_free_heap"] = ESP.getFreeHeap();
+  doc["uptime"] = currentMilliseconds;
+  
+  // Sensor data
+  doc["sensor0_temperature"] = sensor0Temperature;
+  doc["sensor0_humidity"] = sensor0Humidity;
+  
+  // Output status
+  doc["output_heat"] = outputHeat;
+  doc["output_fan"] = outputFan;
+  
+  // OTA status
+  doc["ota_service_started"] = otaServiceStarted;
+  
+  // Timestamp for client-side updates
+  doc["timestamp"] = currentMilliseconds;
   
   String buf;
   serializeJson(doc, buf);
