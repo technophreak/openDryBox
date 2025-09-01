@@ -26,6 +26,21 @@
 				"$platformio"
 			],
 			"group": "build"
+		},
+		{
+			"label": "PlatformIO Monitor",
+			"type": "shell",
+			"command": "C:\\Users\\marcg\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"device",
+				"monitor",
+				"--port",
+				"auto",
+				"--baud",
+				"auto"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

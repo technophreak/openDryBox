@@ -17,7 +17,7 @@
 
 // Program constants definition
 const char* PROGRAM_NAME = "openDryBox";
-const char* PROGRAM_VERSION = "v0.0.5";
+const char* PROGRAM_VERSION = "v0.0.6";
 
 // Application variables definition
 Preferences myPreferences;
