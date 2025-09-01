@@ -205,9 +205,10 @@ void WebServer::getHomePage() {
   htmlPage += "    const programVersionElement = document.getElementById('programVersion');";
   htmlPage += "    if (programVersionElement && data.program_version !== undefined) {";
   htmlPage += "      if (currentVersion !== data.program_version) {";
-  htmlPage += "        if (confirm('Application version has changed from ' + currentVersion + ' to ' + data.program_version + '. Reload the page to ensure you have the latest interface?')) {";
-  htmlPage += "          location.reload();";
-  htmlPage += "        }";
+  htmlPage += "        document.getElementById('oldVersion').textContent = currentVersion;";
+  htmlPage += "        document.getElementById('newVersion').textContent = data.program_version;";
+  htmlPage += "        const versionModal = new bootstrap.Modal(document.getElementById('versionChangeModal'));";
+  htmlPage += "        versionModal.show();";
   htmlPage += "        currentVersion = data.program_version;";
   htmlPage += "      }";
   htmlPage += "      programVersionElement.textContent = data.program_version;";
@@ -243,6 +244,30 @@ void WebServer::getHomePage() {
   htmlPage += "  startRegularUpdates();";
   htmlPage += "});";
   htmlPage += "</script>";
+
+  // Version Change Modal
+  htmlPage += "<div class='modal fade' id='versionChangeModal' tabindex='-1' aria-labelledby='versionChangeModalLabel' aria-hidden='true'>";
+  htmlPage += "<div class='modal-dialog modal-dialog-centered'>";
+  htmlPage += "<div class='modal-content'>";
+  htmlPage += "<div class='modal-header bg-warning text-dark'>";
+  htmlPage += "<h5 class='modal-title' id='versionChangeModalLabel'><i class='bi bi-exclamation-triangle'></i> Application Updated</h5>";
+  htmlPage += "<button type='button' class='btn-close' data-bs-dismiss='modal' aria-label='Close'></button>";
+  htmlPage += "</div>";
+  htmlPage += "<div class='modal-body'>";
+  htmlPage += "<p class='mb-3'>The application version has changed:</p>";
+  htmlPage += "<ul class='list-unstyled'>";
+  htmlPage += "<li><strong>Previous:</strong> <span id='oldVersion' class='text-muted'></span></li>";
+  htmlPage += "<li><strong>Current:</strong> <span id='newVersion' class='text-success'></span></li>";
+  htmlPage += "</ul>";
+  htmlPage += "<p class='mb-0'>It's recommended to reload the page to ensure you have the latest interface features.</p>";
+  htmlPage += "</div>";
+  htmlPage += "<div class='modal-footer'>";
+  htmlPage += "<button type='button' class='btn btn-secondary' data-bs-dismiss='modal'>Later</button>";
+  htmlPage += "<button type='button' class='btn btn-primary' onclick='location.reload()'>Reload Now</button>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
+  htmlPage += "</div>";
 
   htmlPage += F("</body></html>"
     "\r\n");

@@ -1,3 +1,7 @@
+// Program constants definition
+const char* PROGRAM_NAME = "openDryBox";
+const char* PROGRAM_VERSION = "v0.0.8";
+
 // Load required libraries
 #include <Arduino.h>
 #include <WiFi.h>
@@ -14,10 +18,6 @@
 
 // Load Application Functions
 #include "appFunctions.h"
-
-// Program constants definition
-const char* PROGRAM_NAME = "openDryBox";
-const char* PROGRAM_VERSION = "v0.0.7";
 
 // Application variables definition
 Preferences myPreferences;
