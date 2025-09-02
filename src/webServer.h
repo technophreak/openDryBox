@@ -32,6 +32,7 @@ class WebServer {
     void handleNotFound();
     void espRestart();
     void serveStaticFile(const String& path, const String& contentType);
+    void debugListLittleFSFiles(); // Debug function to list files
 
     ESP32WebServer* restServer;
     JsonObject objSettings;

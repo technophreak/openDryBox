@@ -8,6 +8,7 @@ void WebServer::getHomePage() {
   // Try to load HTML from file
   File file = LittleFS.open("/index.html", "r");
   if (!file) {
+    Serial.println("FILE: /index.html - NOT FOUND");
     // Fallback to serving a simple error page
     String errorPage = "<!DOCTYPE html><html><head><title>File Not Found</title></head>";
     errorPage += "<body><h1>Error</h1><p>HTML file not found. Please upload files to LittleFS.</p></body></html>";
@@ -15,8 +16,13 @@ void WebServer::getHomePage() {
     return;
   }
 
+  size_t fileSize = file.size();
   String htmlContent = file.readString();
   file.close();
+  
+  Serial.print("FILE: /index.html - ");
+  Serial.print(fileSize);
+  Serial.println(" bytes");
 
   // Replace template placeholders with actual values
   String deviceName = this->myPreferences->getString("device_name");
@@ -41,8 +47,8 @@ void WebServer::getSettingsPage() {
     "<meta charset='utf-8'>"
     "<meta name='viewport' content='width=device-width, initial-scale=1'>"
     "<title>Settings - openDryBox</title>"
-    "<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>"
-    "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>"
+    "<link href='/css/bootstrap.min.css' rel='stylesheet'>"
+    "<script src='/js/bootstrap.bundle.min.js'></script>"
     "<script>"
     "let originalValues = {};"
     "function trackOriginalValues() {"
@@ -467,6 +473,8 @@ void WebServer::espRestart() {
 }
 
 void WebServer::initRoutes() {
+    Serial.println("Initializing web server routes...");
+    
     this->restServer->on("/", HTTP_GET, [this]() { this->getHomePage(); });
     this->restServer->on(F("/settings"), HTTP_GET, [this]() { this->getSettingsPage(); });
     this->restServer->on(F("/getJsonStatus"), HTTP_GET, [this]() { this->getJsonStatus(); });
@@ -482,11 +490,40 @@ void WebServer::initRoutes() {
 
     // Static file serving for /js/main.js
     this->restServer->on("/js/main.js", HTTP_GET, [this]() { this->serveStaticFile("/js/main.js", "text/javascript"); });
+    
+    // Static file serving - setup routes from array for easier maintenance
+    Serial.println("Setting up static file routes...");
+    
+    struct StaticFileRoute {
+        const char* path;
+        const char* contentType;
+        bool verbose; // Whether to log when route is called
+    };
+    
+    StaticFileRoute staticFiles[] = {
+        {"/css/bootstrap.min.css", "text/css", true},
+        {"/css/bootstrap-icons.css", "text/css", true},
+        {"/js/bootstrap.bundle.min.js", "text/javascript", true},
+        {"/css/fonts/bootstrap-icons.woff2", "font/woff2", false},
+        {"/css/fonts/bootstrap-icons.woff", "font/woff", false}
+    };
+    
+    for (auto& route : staticFiles) {
+        this->restServer->on(route.path, HTTP_GET, [this, route]() { 
+            if (route.verbose) {
+                Serial.print("Static file route called: ");
+                Serial.println(route.path);
+            }
+            this->serveStaticFile(route.path, route.contentType); 
+        });
+    }
 
     // Set not found response
     this->restServer->onNotFound([this]() { this->handleNotFound(); });
+    
     // Start server
     this->restServer->begin();
+    Serial.println("Web server started successfully");
 }
 
 void WebServer::handleClient() {
@@ -502,6 +539,9 @@ WebServer::WebServer(JsonObject objSettings, Preferences* myPreferences) {
   this->scanInProgress = false;
   this->scanComplete = false;
   this->scanStartTime = 0;
+
+  // Debug: List LittleFS files
+  this->debugListLittleFSFiles();
 
   this->initRoutes();
 }
@@ -800,20 +840,111 @@ void WebServer::disableWiFi() {
 void WebServer::serveStaticFile(const String& path, const String& contentType) {
   File file = LittleFS.open(path, "r");
   if (!file) {
+    Serial.print("FILE: ");
+    Serial.print(path);
+    Serial.println(" - NOT FOUND");
     this->restServer->send(404, "text/plain", "File not found");
     return;
   }
 
-  String content = file.readString();
-  file.close();
-
-  // Process template placeholders for JavaScript files
-  if (path.endsWith(".js")) {
+  size_t fileSize = file.size();
+  Serial.print("FILE: ");
+  Serial.print(path);
+  Serial.print(" - ");
+  Serial.print(fileSize);
+  Serial.println(" bytes");
+  
+  // Check if this file needs template processing
+  bool needsTemplateProcessing = (path == "/js/main.js");
+  
+  if (needsTemplateProcessing) {
+    Serial.println("Applying template processing...");
+    
+    // Read content for template processing
+    String content = file.readString();
+    file.close();
+    
+    // Apply template replacements
     content.replace("{{AJAX_TIMEOUT}}", String(this->myPreferences->getInt("ajax_timeout") * 1000));
+    content.replace("{{PROGRAM_NAME}}", String(PROGRAM_NAME));
     content.replace("{{PROGRAM_VERSION}}", String(PROGRAM_VERSION));
+    
+    // Write processed content to temporary file
+    String tempPath = path + ".tmp";
+    File tempFile = LittleFS.open(tempPath, "w");
+    if (!tempFile) {
+      Serial.println("Failed to create temporary file for processing");
+      this->restServer->send(500, "text/plain", "Processing error");
+      return;
+    }
+    
+    tempFile.print(content);
+    tempFile.close();
+    
+    // Now stream the processed file
+    File processedFile = LittleFS.open(tempPath, "r");
+    if (!processedFile) {
+      Serial.println("Failed to open processed temporary file");
+      this->restServer->send(500, "text/plain", "Processing error");
+      return;
+    }
+    
+    this->restServer->streamFile(processedFile, contentType);
+    processedFile.close();
+    
+    // Clean up temporary file
+    LittleFS.remove(tempPath);
+    Serial.println("Processed file streamed and cleaned up");
+    
+  } else {
+    // For files that don't need processing, use streamFile directly
+    Serial.println("Using direct streamFile (no processing needed)");
+    this->restServer->streamFile(file, contentType);
+    file.close();
+    Serial.println("File streamed successfully");
   }
+}
 
-  this->restServer->send(200, contentType, content);
+// Debug function to list LittleFS files
+void WebServer::debugListLittleFSFiles() {
+  Serial.println("=== LittleFS File Listing ===");
+  File root = LittleFS.open("/");
+  if (!root) {
+    Serial.println("ERROR: Failed to open root directory");
+    return;
+  }
+  
+  if (!root.isDirectory()) {
+    Serial.println("ERROR: Root is not a directory");
+    return;
+  }
+  
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      Serial.print("DIR:  ");
+      Serial.println(file.name());
+      
+      // List files in subdirectory
+      File subfile = file.openNextFile();
+      while (subfile) {
+        Serial.print("  FILE: ");
+        Serial.print(subfile.name());
+        Serial.print(" (");
+        Serial.print(subfile.size());
+        Serial.println(" bytes)");
+        subfile = file.openNextFile();
+      }
+    } else {
+      Serial.print("FILE: ");
+      Serial.print(file.name());
+      Serial.print(" (");
+      Serial.print(file.size());
+      Serial.println(" bytes)");
+    }
+    file = root.openNextFile();
+  }
+  Serial.println("=== End File Listing ===");
 }
 
 // Destructor

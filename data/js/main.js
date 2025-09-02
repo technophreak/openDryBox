@@ -2,12 +2,138 @@
 let connectionState = 'pending';
 let reconnectInterval = 3000;
 let maxReconnectInterval = 30000;
-let fetchTimeout = {{AJAX_TIMEOUT}}; // Will be replaced by server
 let lastSuccessfulUpdate = null;
 let reconnectTimer = null;
-let currentVersion = '{{PROGRAM_VERSION}}'; // Will be replaced by server
 let updateInterval;
 let updateInProgress = false; // Prevent overlapping requests
+
+let fetchTimeout = {{AJAX_TIMEOUT}};            // Will be replaced by server
+let currentVersion = '{{PROGRAM_VERSION}}';     // Will be replaced by server
+let currentProgramName = '{{PROGRAM_NAME}}';    // Will be replaced by server
+
+// Sequential resource loader (CSS then JS)
+function loadResourceSequentially(resources, index = 0) {
+    if (index >= resources.length) {
+        console.log('All resources loaded successfully');
+        
+        // Wait for fonts to be ready before initializing application
+        waitForFontsAndInitialize();
+        return;
+    }
+    
+    const resource = resources[index];
+    let element;
+    
+    if (resource.type === 'css') {
+        element = document.createElement('link');
+        element.rel = 'stylesheet';
+        element.type = 'text/css';
+        element.href = resource.src;
+    } else {
+        element = document.createElement('script');
+        element.src = resource.src;
+        element.type = 'text/javascript';
+    }
+    
+    element.onload = function() {
+        console.log('Loaded:', resource.src);
+        // Load next resource immediately
+        loadResourceSequentially(resources, index + 1);
+    };
+    element.onerror = function() {
+        console.error('Failed to load:', resource.src);
+        // Continue loading next resource even if current fails
+        loadResourceSequentially(resources, index + 1);
+    };
+    
+    document.head.appendChild(element);
+}
+
+// Wait for fonts to load before initializing application
+function waitForFontsAndInitialize() {
+    console.log('Waiting for fonts to load...');
+    
+    // Check if Font Loading API is available
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+            console.log('Fonts are ready');
+            initializeAfterResourcesReady();
+        }).catch(function() {
+            console.log('Font loading timeout, proceeding anyway');
+            initializeAfterResourcesReady();
+        });
+        
+        // Fallback timeout in case fonts take too long
+        setTimeout(function() {
+            console.log('Font loading timeout (5s), proceeding anyway');
+            initializeAfterResourcesReady();
+        }, 5000);
+    } else {
+        // Fallback for browsers without Font Loading API
+        console.log('Font Loading API not available, using timeout');
+        setTimeout(function() {
+            initializeAfterResourcesReady();
+        }, 1000);
+    }
+}
+
+// Initialize application after all resources and fonts are ready
+function initializeAfterResourcesReady() {
+    console.log('All resources and fonts ready, initializing application...');
+    
+    setTimeout(function() {
+        // Trigger main.js initialization
+        if (window.initializeApplication && typeof window.initializeApplication === 'function') {
+            console.log('Calling initializeApplication...');
+            window.initializeApplication();
+        } else {
+            console.log('initializeApplication not found, waiting...');
+            setTimeout(function() {
+                if (window.initializeApplication && typeof window.initializeApplication === 'function') {
+                    console.log('Calling initializeApplication (delayed)...');
+                    window.initializeApplication();
+                }
+            }, 200);
+        }
+        
+        // Hide loading overlay after initialization
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }, 300);
+}
+
+// Start sequential resource loading when page is fully loaded
+function startSequentialLoading() {
+    console.log('Page fully loaded, starting sequential resource loading...');
+    
+    const resourcesToLoad = [
+        { type: 'css', src: '/css/bootstrap.min.css' },
+        { type: 'js', src: '/js/bootstrap.bundle.min.js' },
+        { type: 'css', src: '/css/bootstrap-icons.css' }
+    ];
+    
+    loadResourceSequentially(resourcesToLoad);
+}
+
+// Application initialization function (called after all resources are loaded)
+function initializeApplication() {
+  console.log('Initializing application...');
+  
+  // Wait a moment for Bootstrap to be fully ready and UI to stabilize
+  setTimeout(function() {
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Start the main application logic
+    updateStatus();
+    startRegularUpdates();
+    updateWiFiConfigUI();
+    
+    console.log('Application initialized successfully!');
+  }, 1000); // Increased from 200ms to 1000ms
+}
 
 // Utility function for fetch requests with timeout
 function fetchWithTimeout(url, options = {}) {
@@ -552,43 +678,55 @@ function disableWiFiAndStayAP() {
 }
 
 // DOM content loaded event handler
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Bootstrap tooltips
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.map(function (tooltipTriggerEl) { 
-    return new bootstrap.Tooltip(tooltipTriggerEl); 
-  });
+// Note: This will be called from initializeApplication() after all resources are loaded
+function setupEventListeners() {
+  // Initialize Bootstrap tooltips (only if Bootstrap is loaded)
+  if (typeof bootstrap !== 'undefined') {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) { 
+      return new bootstrap.Tooltip(tooltipTriggerEl); 
+    });
+  }
   
   // WiFi configuration form submission
-  document.getElementById('wifiConfigForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const ssid = document.getElementById('networkSelect').value;
-    const password = document.getElementById('wifiPassword').value;
-    
-    if (!ssid) { 
-      showToast('Please select a network', 'error'); 
-      return; 
-    }
-    
-    const formData = new FormData();
-    formData.append('ssid', ssid);
-    formData.append('password', password);
-    
-    fetchWithTimeout('/configureWiFi', { method: 'POST', body: formData })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          showToast(data.message, 'success');
-          bootstrap.Modal.getInstance(document.getElementById('wifiModal')).hide();
-        } else {
-          showToast(data.message, 'error');
-        }
-      })
-      .catch(error => showToast('Configuration failed: ' + error.message, 'error'));
-  });
-  
-  // Start the application
-  updateStatus();
-  startRegularUpdates();
-  updateWiFiConfigUI();
+  const wifiForm = document.getElementById('wifiConfigForm');
+  if (wifiForm) {
+    wifiForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const ssid = document.getElementById('networkSelect').value;
+      const password = document.getElementById('wifiPassword').value;
+      
+      if (!ssid) { 
+        showToast('Please select a network', 'error'); 
+        return; 
+      }
+      
+      const formData = new FormData();
+      formData.append('ssid', ssid);
+      formData.append('password', password);
+      
+      fetchWithTimeout('/configureWiFi', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showToast(data.message, 'success');
+            if (typeof bootstrap !== 'undefined') {
+              bootstrap.Modal.getInstance(document.getElementById('wifiModal')).hide();
+            }
+          } else {
+            showToast(data.message, 'error');
+          }
+        })
+        .catch(error => showToast('Configuration failed: ' + error.message, 'error'));
+    });
+  }
+}
+// Setup event listeners when DOM is ready  
+document.addEventListener('DOMContentLoaded', () => {
+  setupEventListeners();
+});
+
+// Start sequential loading when page is fully loaded
+window.addEventListener('load', () => {
+  startSequentialLoading();
 });
