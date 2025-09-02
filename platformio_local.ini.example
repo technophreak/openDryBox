@@ -1,0 +1,15 @@
+; Personal PlatformIO configuration - copy this file to platformio_local.ini
+; and customize for your setup (platformio_local.ini is ignored by git)
+
+[env:esp32s3_arduino]
+
+; Change the following section below accordingly
+monitor_port = COM4
+
+;   For serial updates over USB (Disable OTA Section)
+upload_port = COM4
+
+;   For OTA updates (Disable serial Section)
+;upload_port = 192.168.88.123
+;upload_protocol = espota
+;upload_flags = --auth=pl@tformi0

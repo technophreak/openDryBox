@@ -4,10 +4,14 @@ const String allSettings = R"(
   {
     "device_name": { "type": "string", "default": "Untitled", "label": "Device Name", "description": "Friendly name for this device" },
     
-    "wifi_enabled": { "type": "boolean", "default": true, "label": "Enable WiFi", "description": "Enable or disable WiFi connectivity" },
+    "wifi_enabled": { "type": "boolean", "default": true, "label": "Enable WiFi", "description": "Enable or disable WiFi connectivity. When disabled, device will always start in AP mode for configuration." },
     "wifi_ssid": { "type": "string", "default": "", "label": "WiFi Network Name", "description": "SSID of the WiFi network to connect to" },
     "wifi_password": { "type": "string", "default": "", "obfuscate": true, "label": "WiFi Password", "description": "Password for the WiFi network" },
     "wifi_timeout": { "type": "integer", "default": 10, "label": "WiFi Timeout", "description": "Timeout in seconds for WiFi connection attempts" },
+    "wifi_retries": { "type": "integer", "default": 3, "label": "WiFi Retry Count", "description": "Number of connection attempts before switching to AP mode" },
+    
+    "ap_ssid": { "type": "string", "default": "openDryBox", "label": "AP Network Name", "description": "SSID for Access Point mode" },
+    "ap_password": { "type": "string", "default": "", "obfuscate": false, "label": "AP Password", "description": "Password for Access Point mode - leave empty for open network" },
     
     "network_dhcp": { "type": "boolean", "default": true, "label": "Use DHCP", "description": "Automatically obtain IP address from router" },
     "network_ip": { "type": "string", "default": "", "label": "Static IP Address", "description": "Manual IP address when DHCP is disabled" },

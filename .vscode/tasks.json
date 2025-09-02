@@ -41,6 +41,17 @@
 			],
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "PlatformIO: Upload Filesystem Image",
+			"type": "shell",
+			"command": "C:\\Users\\marcg\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"uploadfs"
+			],
+			"group": "build"
 		}
 	]
 }

@@ -1,277 +1,33 @@
 #include "webServer.h"
 #include "appFunctions.h"
 #include <ArduinoOTA.h>
+#include <LittleFS.h>
 
 // Serving Home Page
 void WebServer::getHomePage() {
+  // Try to load HTML from file
+  File file = LittleFS.open("/index.html", "r");
+  if (!file) {
+    // Fallback to serving a simple error page
+    String errorPage = "<!DOCTYPE html><html><head><title>File Not Found</title></head>";
+    errorPage += "<body><h1>Error</h1><p>HTML file not found. Please upload files to LittleFS.</p></body></html>";
+    this->restServer->send(404, "text/html", errorPage);
+    return;
+  }
 
-  unsigned long currentMilliseconds = millis();
+  String htmlContent = file.readString();
+  file.close();
 
-  String htmlPage;
-  htmlPage.reserve(4096);               // prevent ram fragmentation - increased for Bootstrap and JavaScript
-  htmlPage = F("<!DOCTYPE html>"
-    "<html lang='en'>"
-    "<head>"
-    "<meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-    "<title>openDryBox</title>"
-    "<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>"
-    "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>"
-    "</head>");
-  htmlPage += F("<body class='bg-light'>");
-
-  // Toast container
-  htmlPage += "<div id='toastContainer' class='toast-container position-fixed top-0 end-0 p-3' style='z-index: 1055;'></div>";
-
-  // Header
-  htmlPage += "<div class='container mt-4'>";
-  htmlPage += "<div class='row'>";
-  htmlPage += "<div class='col-12'>";
-  htmlPage += "<h1 class='display-4 text-primary' id='deviceName'>Loading...</h1>";
-  htmlPage += "<h2 class='h5 text-secondary mb-4'><span id='programName'>" + String(PROGRAM_NAME) + "</span> <small class='text-muted' id='programVersion'>" + String(PROGRAM_VERSION) + "</small></h2>";
-  htmlPage += "</div></div>";
-
-  // Top Row: Status and Presets
-  htmlPage += "<div class='row mb-4'>";
+  // Replace template placeholders with actual values
+  String deviceName = this->myPreferences->getString("device_name");
+  if (deviceName.isEmpty()) deviceName = "openDryBox";
   
-  // Status Card
-  htmlPage += "<div class='col-md-6 d-flex'>";
-  htmlPage += "<div class='card h-100 w-100'>";
-  htmlPage += "<div class='card-header bg-primary text-white'>";
-  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-thermometer'></i> Status ";
-  htmlPage += "<span id='connectionStatus' class='badge bg-warning text-dark' data-bs-toggle='tooltip' title='Connection pending...'>Pending</span>";
-  htmlPage += "<small id='lastUpdate' class='text-white-50 ms-2'></small></h5>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='card-body'>";
-  htmlPage += "<div class='row'>";
-  htmlPage += "<div class='col-6'>";
-  htmlPage += "<p class='mb-2'><strong>Temperature:</strong><br><span id='temperature' class='h5 text-info'>--°C</span></p>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='col-6'>";
-  htmlPage += "<p class='mb-2'><strong>Humidity:</strong><br><span id='humidity' class='h5 text-info'>--%</span></p>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "<hr>";
-  htmlPage += "<div class='row'>";
-  htmlPage += "<div class='col-6'>";
-  htmlPage += "<p class='mb-1'><strong>Heat:</strong></p>";
-  htmlPage += "<span id='heatStatus' class='badge bg-secondary'>--</span>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='col-6'>";
-  htmlPage += "<p class='mb-1'><strong>Fan:</strong></p>";
-  htmlPage += "<span id='fanStatus' class='badge bg-secondary'>--</span>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
+  htmlContent.replace("{{DEVICE_NAME}}", deviceName);
+  htmlContent.replace("{{PROGRAM_NAME}}", String(PROGRAM_NAME));
+  htmlContent.replace("{{PROGRAM_VERSION}}", String(PROGRAM_VERSION));
+  htmlContent.replace("{{AJAX_TIMEOUT}}", String(this->myPreferences->getInt("ajax_timeout") * 1000));
 
-  // Presets Card
-  htmlPage += "<div class='col-md-6 d-flex'>";
-  htmlPage += "<div class='card h-100 w-100'>";
-  htmlPage += "<div class='card-header bg-success text-white'>";
-  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-bookmark'></i> Presets</h5>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='card-body'>";
-  htmlPage += "<p class='text-muted'>Quick access to predefined settings configurations.</p>";
-  htmlPage += "<div class='text-center text-muted'>";
-  htmlPage += "<i class='bi bi-plus-circle' style='font-size: 2rem;'></i>";
-  htmlPage += "<p class='mt-2'>Coming Soon</p>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-
-  // Bottom Row: Settings and OTA Service
-  htmlPage += "<div class='row mb-4'>";
-  
-  // Settings Card
-  htmlPage += "<div class='col-md-6 d-flex'>";
-  htmlPage += "<div class='card h-100 w-100'>";
-  htmlPage += "<div class='card-header bg-secondary text-white'>";
-  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-gear'></i> Settings</h5>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='card-body'>";
-  htmlPage += "<p class='text-muted'>Configure device settings and parameters.</p>";
-  htmlPage += "<a href='/settings' class='btn btn-primary'>Open Settings</a>";
-  htmlPage += "<a href='/getJsonSettings' target='_blank' class='btn btn-outline-secondary ms-2'>View JSON</a>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-
-  // OTA Service Card
-  htmlPage += "<div class='col-md-6 d-flex'>";
-  htmlPage += "<div class='card h-100 w-100'>";
-  htmlPage += "<div class='card-header bg-warning text-dark'>";
-  htmlPage += "<h5 class='card-title mb-0'><i class='bi bi-cloud-arrow-up'></i> OTA Service <span id='otaStatus' class='badge bg-secondary'>--</span></h5>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='card-body'>";
-  htmlPage += "<p class='text-muted'>Over-the-air firmware updates.</p>";
-  htmlPage += "<div class='btn-group' role='group'>";
-  htmlPage += "<button type='button' class='btn btn-outline-success btn-sm' onclick='otaAction(\"otaStart\")'>Start OTA</button>";
-  htmlPage += "<button type='button' class='btn btn-outline-danger btn-sm' onclick='otaAction(\"otaStop\")'>Stop OTA</button>";
-  htmlPage += "<button type='button' class='btn btn-outline-warning btn-sm' onclick='otaAction(\"espRestart\", \"Are you sure you want to restart the device?\")'>Restart Device</button>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-
-  htmlPage += "</div>"; // Close container
-  
-  // Add complete JavaScript at the end
-  htmlPage += "<script>";
-  htmlPage += "let connectionState = 'pending';";
-  htmlPage += "let reconnectInterval = 3000;";
-  htmlPage += "let maxReconnectInterval = 30000;";
-  htmlPage += "let fetchTimeout = " + String(this->myPreferences->getInt("ajax_timeout") * 1000) + ";"; // Convert seconds to milliseconds
-  htmlPage += "let lastSuccessfulUpdate = null;";
-  htmlPage += "let reconnectTimer = null;";
-  htmlPage += "let currentVersion = '" + String(PROGRAM_VERSION) + "';"; // Track current version for reload detection
-  htmlPage += "function fetchWithTimeout(url, options = {}) {";
-  htmlPage += "  return Promise.race([";
-  htmlPage += "    fetch(url, options),";
-  htmlPage += "    new Promise((_, reject) => {";
-  htmlPage += "      setTimeout(() => reject(new Error('Request timeout after ' + fetchTimeout + 'ms')), fetchTimeout);";
-  htmlPage += "    })";
-  htmlPage += "  ]);";
-  htmlPage += "}";
-  htmlPage += "function showToast(message, type = 'info') {";
-  htmlPage += "  const toastContainer = document.getElementById('toastContainer');";
-  htmlPage += "  const toastId = 'toast-' + Date.now();";
-  htmlPage += "  const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';";
-  htmlPage += "  const toastHTML = '<div id=\"' + toastId + '\" class=\"toast ' + bgClass + ' text-white\" role=\"alert\">' + '<div class=\"toast-body\">' + message + '</div></div>';";
-  htmlPage += "  toastContainer.insertAdjacentHTML('beforeend', toastHTML);";
-  htmlPage += "  const toast = new bootstrap.Toast(document.getElementById(toastId));";
-  htmlPage += "  toast.show();";
-  htmlPage += "  setTimeout(() => document.getElementById(toastId).remove(), 5000);";
-  htmlPage += "}";
-  htmlPage += "function updateConnectionStatus(status, tooltip = '', showToastMsg = false) {";
-  htmlPage += "  const badge = document.getElementById('connectionStatus');";
-  htmlPage += "  if (!badge) return;";
-  htmlPage += "  badge.textContent = status;";
-  htmlPage += "  badge.setAttribute('data-bs-original-title', tooltip);";
-  htmlPage += "  if (status === 'Connected') {";
-  htmlPage += "    badge.className = 'badge bg-success';";
-  htmlPage += "    if (connectionState === 'disconnected' && showToastMsg) {";
-  htmlPage += "      showToast('Connection restored!', 'success');";
-  htmlPage += "    }";
-  htmlPage += "    connectionState = 'connected';";
-  htmlPage += "    reconnectInterval = 3000;";
-  htmlPage += "  } else if (status === 'Disconnected') {";
-  htmlPage += "    badge.className = 'badge bg-danger';";
-  htmlPage += "    if (connectionState === 'connected' && showToastMsg) {";
-  htmlPage += "      showToast('Connection lost! Attempting to reconnect...', 'error');";
-  htmlPage += "    }";
-  htmlPage += "    connectionState = 'disconnected';";
-  htmlPage += "  } else {";
-  htmlPage += "    badge.className = 'badge bg-warning text-dark';";
-  htmlPage += "    connectionState = 'pending';";
-  htmlPage += "  }";
-  htmlPage += "}";
-  htmlPage += "function scheduleReconnect() {";
-  htmlPage += "  if (reconnectTimer) clearTimeout(reconnectTimer);";
-  htmlPage += "  reconnectTimer = setTimeout(() => {";
-  htmlPage += "    updateStatus();";
-  htmlPage += "    reconnectInterval = Math.min(reconnectInterval * 1.5, maxReconnectInterval);";
-  htmlPage += "  }, reconnectInterval);";
-  htmlPage += "}";
-  htmlPage += "function otaAction(action, confirmMsg = null) {";
-  htmlPage += "  if (confirmMsg && !confirm(confirmMsg)) return;";
-  htmlPage += "  const btn = event.target;";
-  htmlPage += "  const originalText = btn.textContent;";
-  htmlPage += "  btn.disabled = true;";
-  htmlPage += "  btn.textContent = 'Processing...';";
-  htmlPage += "  fetchWithTimeout('/' + action).then(response => response.json()).then(data => {";
-  htmlPage += "    showToast(data.message, data.status);";
-  htmlPage += "    if (data.status === 'success' && action === 'espRestart') setTimeout(() => location.reload(), 3000);";
-  htmlPage += "  }).catch(error => showToast('Error: ' + error.message, 'error')).finally(() => {";
-  htmlPage += "    btn.disabled = false; btn.textContent = originalText;";
-  htmlPage += "  });";
-  htmlPage += "}";
-  htmlPage += "function updateStatus() {";
-  htmlPage += "  fetchWithTimeout('/getJsonStatus').then(response => {";
-  htmlPage += "    if (!response.ok) throw new Error('HTTP ' + response.status);";
-  htmlPage += "    return response.json();";
-  htmlPage += "  }).then(data => {";
-  htmlPage += "    const now = new Date();";
-  htmlPage += "    lastSuccessfulUpdate = now;";
-  htmlPage += "    updateConnectionStatus('Connected', 'Last update: ' + now.toLocaleString(), true);";
-  htmlPage += "    const deviceNameElement = document.getElementById('deviceName');";
-  htmlPage += "    if (deviceNameElement && data.device_name !== undefined) deviceNameElement.textContent = data.device_name;";
-  htmlPage += "    const programNameElement = document.getElementById('programName');";
-  htmlPage += "    if (programNameElement && data.program_name !== undefined) programNameElement.textContent = data.program_name;";
-  htmlPage += "    const programVersionElement = document.getElementById('programVersion');";
-  htmlPage += "    if (programVersionElement && data.program_version !== undefined) {";
-  htmlPage += "      if (currentVersion !== data.program_version) {";
-  htmlPage += "        document.getElementById('oldVersion').textContent = currentVersion;";
-  htmlPage += "        document.getElementById('newVersion').textContent = data.program_version;";
-  htmlPage += "        const versionModal = new bootstrap.Modal(document.getElementById('versionChangeModal'));";
-  htmlPage += "        versionModal.show();";
-  htmlPage += "        currentVersion = data.program_version;";
-  htmlPage += "      }";
-  htmlPage += "      programVersionElement.textContent = data.program_version;";
-  htmlPage += "    }";
-  htmlPage += "    const tempElement = document.getElementById('temperature');";
-  htmlPage += "    if (tempElement && data.sensor0_temperature !== undefined) tempElement.textContent = data.sensor0_temperature + '°C';";
-  htmlPage += "    const humidityElement = document.getElementById('humidity');";
-  htmlPage += "    if (humidityElement && data.sensor0_humidity !== undefined) humidityElement.textContent = data.sensor0_humidity + '%';";
-  htmlPage += "    const heatElement = document.getElementById('heatStatus');";
-  htmlPage += "    if (heatElement && data.output_heat !== undefined) { heatElement.textContent = data.output_heat ? 'ON' : 'OFF'; heatElement.className = 'badge ' + (data.output_heat ? 'bg-danger' : 'bg-secondary'); }";
-  htmlPage += "    const fanElement = document.getElementById('fanStatus');";
-  htmlPage += "    if (fanElement && data.output_fan !== undefined) { fanElement.textContent = data.output_fan ? 'ON' : 'OFF'; fanElement.className = 'badge ' + (data.output_fan ? 'bg-primary' : 'bg-secondary'); }";
-  htmlPage += "    const otaElement = document.getElementById('otaStatus');";
-  htmlPage += "    if (otaElement && data.ota_service_started !== undefined) { otaElement.textContent = data.ota_service_started ? 'Active' : 'Inactive'; otaElement.className = 'badge ' + (data.ota_service_started ? 'bg-success' : 'bg-secondary'); }";
-  htmlPage += "  }).catch(error => {";
-  htmlPage += "    console.error('Update failed:', error);";
-  htmlPage += "    const errorMsg = error.message.includes('Failed to fetch') ? 'Network error' : error.message;";
-  htmlPage += "    updateConnectionStatus('Disconnected', 'Error: ' + errorMsg + ' at ' + new Date().toLocaleString(), true);";
-  htmlPage += "    if (connectionState === 'disconnected') scheduleReconnect();";
-  htmlPage += "  });";
-  htmlPage += "}";
-  htmlPage += "let updateInterval;";
-  htmlPage += "function startRegularUpdates() {";
-  htmlPage += "  if (updateInterval) clearInterval(updateInterval);";
-  htmlPage += "  updateInterval = setInterval(() => {";
-  htmlPage += "    if (connectionState !== 'disconnected') updateStatus();";
-  htmlPage += "  }, 3000);";
-  htmlPage += "}";
-  htmlPage += "document.addEventListener('DOMContentLoaded', () => {";
-  htmlPage += "  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle=\"tooltip\"]'));";
-  htmlPage += "  tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl); });";
-  htmlPage += "  updateStatus();";
-  htmlPage += "  startRegularUpdates();";
-  htmlPage += "});";
-  htmlPage += "</script>";
-
-  // Version Change Modal
-  htmlPage += "<div class='modal fade' id='versionChangeModal' tabindex='-1' aria-labelledby='versionChangeModalLabel' aria-hidden='true'>";
-  htmlPage += "<div class='modal-dialog modal-dialog-centered'>";
-  htmlPage += "<div class='modal-content'>";
-  htmlPage += "<div class='modal-header bg-warning text-dark'>";
-  htmlPage += "<h5 class='modal-title' id='versionChangeModalLabel'><i class='bi bi-exclamation-triangle'></i> Application Updated</h5>";
-  htmlPage += "<button type='button' class='btn-close' data-bs-dismiss='modal' aria-label='Close'></button>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='modal-body'>";
-  htmlPage += "<p class='mb-3'>The application version has changed:</p>";
-  htmlPage += "<ul class='list-unstyled'>";
-  htmlPage += "<li><strong>Previous:</strong> <span id='oldVersion' class='text-muted'></span></li>";
-  htmlPage += "<li><strong>Current:</strong> <span id='newVersion' class='text-success'></span></li>";
-  htmlPage += "</ul>";
-  htmlPage += "<p class='mb-0'>It's recommended to reload the page to ensure you have the latest interface features.</p>";
-  htmlPage += "</div>";
-  htmlPage += "<div class='modal-footer'>";
-  htmlPage += "<button type='button' class='btn btn-secondary' data-bs-dismiss='modal'>Later</button>";
-  htmlPage += "<button type='button' class='btn btn-primary' onclick='location.reload()'>Reload Now</button>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-  htmlPage += "</div>";
-
-  htmlPage += F("</body></html>"
-    "\r\n");
-      this->restServer->send(200, "text/html", htmlPage);
+  this->restServer->send(200, "text/html", htmlContent);
 }
 
 // Serving Settings Page
@@ -441,6 +197,9 @@ void WebServer::getJsonStatus() {
   doc["wifi_signal_strength"] = WiFi.RSSI();
   doc["board_free_heap"] = ESP.getFreeHeap();
   doc["uptime"] = currentMilliseconds;
+  doc["ap_mode_active"] = apModeActive;
+  doc["wifi_connected"] = WiFi.status() == WL_CONNECTED;
+  doc["wifi_enabled"] = this->myPreferences->getBool("wifi_enabled");
   
   // Sensor data
   doc["sensor0_temperature"] = sensor0Temperature;
@@ -715,7 +474,14 @@ void WebServer::initRoutes() {
     this->restServer->on(F("/setSettings"), HTTP_GET, [this]() { this->setSettings(); });
     this->restServer->on(F("/otaStart"), HTTP_GET, [this]() { this->otaStart(); });
     this->restServer->on(F("/otaStop"), HTTP_GET, [this]() { this->otaStop(); });
+    this->restServer->on(F("/startWiFiScan"), HTTP_GET, [this]() { this->startWiFiScan(); });
+    this->restServer->on(F("/getWiFiScanResults"), HTTP_GET, [this]() { this->getWiFiScanResults(); });
+    this->restServer->on(F("/configureWiFi"), HTTP_POST, [this]() { this->configureWiFi(); });
+    this->restServer->on(F("/disableWiFi"), HTTP_POST, [this]() { this->disableWiFi(); });
     this->restServer->on(F("/espRestart"), HTTP_GET, [this]() { this->espRestart(); });
+
+    // Static file serving for /js/main.js
+    this->restServer->on("/js/main.js", HTTP_GET, [this]() { this->serveStaticFile("/js/main.js", "text/javascript"); });
 
     // Set not found response
     this->restServer->onNotFound([this]() { this->handleNotFound(); });
@@ -731,8 +497,323 @@ WebServer::WebServer(JsonObject objSettings, Preferences* myPreferences) {
   this->restServer = new ESP32WebServer(myPreferences->getInt("webserver_port"));
   this->objSettings = objSettings;
   this->myPreferences = myPreferences;
+  
+  // Initialize scan state
+  this->scanInProgress = false;
+  this->scanComplete = false;
+  this->scanStartTime = 0;
 
   this->initRoutes();
+}
+
+// Start WiFi scan (immediate response, scan happens in background)
+void WebServer::startWiFiScan() {
+  Serial.println("Starting WiFi scan...");
+  
+  JsonDocument doc;
+  
+  if (scanInProgress) {
+    doc["success"] = false;
+    doc["message"] = "Scan already in progress";
+    doc["scanning"] = true;
+  } else {
+    // Mark scan as started
+    scanInProgress = true;
+    scanComplete = false;
+    scanStartTime = millis();
+    
+    doc["success"] = true;
+    doc["message"] = "WiFi scan started";
+    doc["scanning"] = true;
+    
+    // Send response immediately before starting scan
+    String response;
+    serializeJson(doc, response);
+    this->restServer->send(200, "application/json", response);
+    
+    // Now start the actual scan in background
+    Serial.println("Initiating background WiFi scan...");
+    
+    // Store current mode and AP configuration
+    wifi_mode_t currentMode = WiFi.getMode();
+    String currentAPSSID = "";
+    String currentAPPassword = "";
+    
+    if (currentMode == WIFI_AP && apModeActive) {
+      // Get current AP config to restore later
+      currentAPSSID = this->myPreferences->getString("ap_ssid");
+      currentAPPassword = this->myPreferences->getString("ap_password");
+      
+      // Switch to AP+STA mode
+      WiFi.mode(WIFI_AP_STA);
+      delay(500);
+      
+      // Restore AP configuration after mode switch
+      if (currentAPPassword.length() > 0) {
+        WiFi.softAP(currentAPSSID.c_str(), currentAPPassword.c_str());
+      } else {
+        WiFi.softAP(currentAPSSID.c_str(), "", 1, 0, 4);
+      }
+      delay(200);
+    }
+    
+    // Perform the scan
+    int networksFound = WiFi.scanNetworks(false, false, false, 200);
+    
+    // Process results
+    scanResults.clear();
+    
+    if (networksFound == WIFI_SCAN_FAILED) {
+      Serial.println("WiFi scan failed");
+      scanResults["success"] = false;
+      scanResults["message"] = "WiFi scan failed";
+      scanResults["count"] = 0;
+      scanResults["networks"] = JsonArray();
+    } else if (networksFound == 0) {
+      Serial.println("No networks found");
+      scanResults["success"] = true;
+      scanResults["message"] = "No networks found";
+      scanResults["count"] = 0;
+      scanResults["networks"] = JsonArray();
+    } else {
+      Serial.printf("Found %d networks\n", networksFound);
+      
+      JsonArray networks = scanResults["networks"].to<JsonArray>();
+      
+      for (int i = 0; i < networksFound; i++) {
+        JsonObject network = networks.add<JsonObject>();
+        network["ssid"] = WiFi.SSID(i);
+        network["rssi"] = WiFi.RSSI(i);
+        network["encryption"] = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured";
+        Serial.printf("  %d: %s (%d dBm) %s\n", i+1, WiFi.SSID(i).c_str(), WiFi.RSSI(i), (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured");
+      }
+      
+      scanResults["success"] = true;
+      scanResults["count"] = networksFound;
+    }
+    
+    // Restore original mode if we were in pure AP mode
+    if (currentMode == WIFI_AP && apModeActive) {
+      Serial.println("Restoring AP-only mode...");
+      WiFi.mode(WIFI_AP);
+      delay(200);
+      
+      // Restore AP configuration
+      if (currentAPPassword.length() > 0) {
+        WiFi.softAP(currentAPSSID.c_str(), currentAPPassword.c_str());
+      } else {
+        WiFi.softAP(currentAPSSID.c_str(), "", 1, 0, 4);
+      }
+      delay(300);
+      Serial.println("AP mode restored");
+    }
+    
+    WiFi.scanDelete();
+    scanInProgress = false;
+    scanComplete = true;
+    
+    Serial.println("Background WiFi scan completed");
+    return; // Response already sent
+  }
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
+}
+
+// Get WiFi scan results
+void WebServer::getWiFiScanResults() {
+  JsonDocument doc;
+  
+  if (scanInProgress) {
+    doc["success"] = false;
+    doc["message"] = "Scan still in progress";
+    doc["scanning"] = true;
+    doc["elapsed"] = millis() - scanStartTime;
+  } else if (scanComplete) {
+    // Return the stored results from on-demand scan
+    doc = scanResults;
+    doc["scanning"] = false;
+    doc["elapsed"] = millis() - scanStartTime;
+  } else if (initialScanComplete && initialWiFiScanResults.length() > 0) {
+    // No on-demand scan available, return initial scan results
+    DeserializationError error = deserializeJson(doc, initialWiFiScanResults);
+    if (error) {
+      doc["success"] = false;
+      doc["message"] = "Error parsing initial scan results";
+      doc["scanning"] = false;
+    } else {
+      doc["scanning"] = false;
+      doc["message"] = doc["message"].as<String>() + " (initial scan)";
+    }
+  } else {
+    doc["success"] = false;
+    doc["message"] = "No scan results available";
+    doc["scanning"] = false;
+  }
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
+}
+
+// WiFi network scanning - DEPRECATED: Use startWiFiScan/getWiFiScanResults instead
+void WebServer::scanWiFiNetworks() {
+  Serial.println("Scanning for WiFi networks...");
+  
+  // Store current mode and AP configuration
+  wifi_mode_t currentMode = WiFi.getMode();
+  String currentAPSSID = "";
+  String currentAPPassword = "";
+  
+  if (currentMode == WIFI_AP && apModeActive) {
+    // We're in AP mode, need to temporarily enable STA for scanning
+    Serial.println("Preparing for scan while maintaining AP...");
+    
+    // Get current AP config to restore later
+    currentAPSSID = this->myPreferences->getString("ap_ssid");
+    currentAPPassword = this->myPreferences->getString("ap_password");
+    
+    // Switch to AP+STA mode more gracefully
+    WiFi.mode(WIFI_AP_STA);
+    delay(500); // Longer delay for stable mode switch
+    
+    // Restore AP configuration after mode switch
+    if (currentAPPassword.length() > 0) {
+      WiFi.softAP(currentAPSSID.c_str(), currentAPPassword.c_str());
+    } else {
+      WiFi.softAP(currentAPSSID.c_str(), "", 1, 0, 4);
+    }
+    delay(200); // Allow AP to stabilize
+  }
+  
+  // Perform the scan with shorter channel time to reduce disruption
+  int networksFound = WiFi.scanNetworks(false, false, false, 200); // Reduced from 300ms to 200ms per channel
+  
+  JsonDocument doc;
+  
+  if (networksFound == WIFI_SCAN_FAILED) {
+    Serial.println("WiFi scan failed");
+    doc["success"] = false;
+    doc["message"] = "WiFi scan failed";
+    doc["count"] = 0;
+    doc["networks"] = JsonArray();
+  } else if (networksFound == 0) {
+    Serial.println("No networks found");
+    doc["success"] = true;
+    doc["message"] = "No networks found";
+    doc["count"] = 0;
+    doc["networks"] = JsonArray();
+  } else {
+    Serial.printf("Found %d networks\n", networksFound);
+    
+    JsonArray networks = doc["networks"].to<JsonArray>();
+    
+    for (int i = 0; i < networksFound; i++) {
+      JsonObject network = networks.add<JsonObject>();
+      network["ssid"] = WiFi.SSID(i);
+      network["rssi"] = WiFi.RSSI(i);
+      network["encryption"] = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured";
+      Serial.printf("  %d: %s (%d dBm) %s\n", i+1, WiFi.SSID(i).c_str(), WiFi.RSSI(i), (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured");
+    }
+    
+    doc["success"] = true;
+    doc["count"] = networksFound;
+  }
+  
+  // Restore original mode if we were in pure AP mode
+  if (currentMode == WIFI_AP && apModeActive) {
+    Serial.println("Restoring AP-only mode...");
+    WiFi.mode(WIFI_AP);
+    delay(200);
+    
+    // Restore AP configuration
+    if (currentAPPassword.length() > 0) {
+      WiFi.softAP(currentAPSSID.c_str(), currentAPPassword.c_str());
+    } else {
+      WiFi.softAP(currentAPSSID.c_str(), "", 1, 0, 4);
+    }
+    delay(300); // Allow AP to fully stabilize
+    Serial.println("AP mode restored");
+  }
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
+  
+  WiFi.scanDelete(); // Clean up scan results
+}
+
+// Configure WiFi settings
+void WebServer::configureWiFi() {
+  if (!this->restServer->hasArg("ssid") || !this->restServer->hasArg("password")) {
+    JsonDocument doc;
+    doc["success"] = false;
+    doc["message"] = "Missing SSID or password";
+    
+    String response;
+    serializeJson(doc, response);
+    this->restServer->send(400, "application/json", response);
+    return;
+  }
+  
+  String newSSID = this->restServer->arg("ssid");
+  String newPassword = this->restServer->arg("password");
+  
+  // Save new WiFi settings
+  this->myPreferences->putString("wifi_ssid", newSSID);
+  this->myPreferences->putString("wifi_password", newPassword);
+  this->myPreferences->putBool("wifi_enabled", true);
+  
+  JsonDocument doc;
+  doc["success"] = true;
+  doc["message"] = "WiFi settings saved. Device will restart in 3 seconds to apply changes.";
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
+  
+  // Schedule restart to apply new settings
+  delay(100); // Give time for response to be sent
+  ESP.restart();
+}
+
+// Disable WiFi and stay in AP mode
+void WebServer::disableWiFi() {
+  Serial.println("Disabling WiFi - staying in AP mode");
+  
+  // Save WiFi disabled setting
+  this->myPreferences->putBool("wifi_enabled", false);
+  
+  JsonDocument doc;
+  doc["success"] = true;
+  doc["message"] = "WiFi disabled. Device will stay in AP mode permanently. You can re-enable WiFi from the settings page.";
+  
+  String response;
+  serializeJson(doc, response);
+  this->restServer->send(200, "application/json", response);
+  
+  Serial.println("WiFi disabled in settings");
+}
+
+// Serve static files from LittleFS with template processing
+void WebServer::serveStaticFile(const String& path, const String& contentType) {
+  File file = LittleFS.open(path, "r");
+  if (!file) {
+    this->restServer->send(404, "text/plain", "File not found");
+    return;
+  }
+
+  String content = file.readString();
+  file.close();
+
+  // Process template placeholders for JavaScript files
+  if (path.endsWith(".js")) {
+    content.replace("{{AJAX_TIMEOUT}}", String(this->myPreferences->getInt("ajax_timeout") * 1000));
+    content.replace("{{PROGRAM_VERSION}}", String(PROGRAM_VERSION));
+  }
+
+  this->restServer->send(200, contentType, content);
 }
 
 // Destructor

@@ -1,6 +1,6 @@
 // Program constants definition
 const char* PROGRAM_NAME = "openDryBox";
-const char* PROGRAM_VERSION = "v0.0.9";
+const char* PROGRAM_VERSION = "v0.0.11";
 
 // Load required libraries
 #include <Arduino.h>
@@ -9,6 +9,7 @@ const char* PROGRAM_VERSION = "v0.0.9";
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <Preferences.h>
+#include <LittleFS.h>
 
 // Load Settings Definition
 #include "allSettings.h"
@@ -23,7 +24,10 @@ const char* PROGRAM_VERSION = "v0.0.9";
 Preferences myPreferences;
 WebServer* webServer = nullptr;
 bool wifiServiceStarted = false;
+String initialWiFiScanResults = "";
+bool initialScanComplete = false;
 bool otaServiceStarted = false;
+bool apModeActive = false;
 uint64_t sensor0ReadMillis = millis();
 String sensor0Temperature = "0";
 String sensor0Humidity = "0";
@@ -40,6 +44,13 @@ void setup() {
 
   // Display program version
   Serial.println("\n\nProgram: " + String(PROGRAM_NAME) + " - " + String(PROGRAM_VERSION));
+  
+  // Initialize LittleFS
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS Mount Failed");
+  } else {
+    Serial.println("LittleFS Mount Successful");
+  }
  
   // Initialize Settings Definition
   objSettings = initSettingsDefinition(allSettings);

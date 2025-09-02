@@ -20,6 +20,7 @@ extern WebServer* webServer;
 // Service status flags
 extern bool wifiServiceStarted;
 extern bool otaServiceStarted;
+extern bool apModeActive;
 
 // Sensor and output variables
 extern uint64_t sensor0ReadMillis;
@@ -28,7 +29,13 @@ extern String sensor0Humidity;
 extern bool outputHeat;
 extern bool outputFan;
 
+// Initial WiFi scan variables
+extern String initialWiFiScanResults;
+extern bool initialScanComplete;
+
 // Function declarations
 void loadPreferences();
 void connectWifi();
+void startAPMode();
+void performInitialWiFiScan();
 void otaUpdatesInit();

@@ -24,12 +24,24 @@ class WebServer {
     void setSettings();
     void otaStart();
     void otaStop();
+    void scanWiFiNetworks(); // Deprecated but still present
+    void startWiFiScan();
+    void getWiFiScanResults();
+    void configureWiFi();
+    void disableWiFi();
     void handleNotFound();
     void espRestart();
+    void serveStaticFile(const String& path, const String& contentType);
 
     ESP32WebServer* restServer;
     JsonObject objSettings;
     Preferences* myPreferences;
+    
+    // WiFi scan state tracking
+    bool scanInProgress;
+    bool scanComplete;
+    JsonDocument scanResults;
+    unsigned long scanStartTime;
 };
 
 #endif

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{DEVICE_NAME}} - {{PROGRAM_NAME}} {{PROGRAM_VERSION}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <!-- Main Container -->
+    <div class="container my-4">
+        <!-- Header Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h3 class="card-title mb-0">
+                            <i class="bi bi-thermometer-half"></i> 
+                            <span id="deviceName">{{DEVICE_NAME}}</span>
+                        </h3>
+                        <small>
+                            <span id="programName">{{PROGRAM_NAME}}</span> 
+                            <span id="programVersion">{{PROGRAM_VERSION}}</span>
+                        </small>
+                    </div>
+                    <div class="card-body text-center">
+                        <p class="text-muted mb-2">
+                            Connection: 
+                            <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensor Data Row -->
+        <div class="row mb-4">
+            <!-- Temperature Card -->
+            <div class="col-md-6 d-flex">
+                <div class="card h-100 w-100 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-thermometer-half"></i> Temperature
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h2 class="display-4 text-danger mb-0">
+                            <span id="temperature">--</span>
+                        </h2>
+                        <p class="text-muted">Internal Sensor</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="col-md-6 d-flex">
+                <div class="card h-100 w-100 border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-droplet"></i> Humidity
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h2 class="display-4 text-info mb-0">
+                            <span id="humidity">--</span>
+                        </h2>
+                        <p class="text-muted">Internal Sensor</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Row -->
+        <div class="row mb-4">
+            <!-- Heat Control Card -->
+            <div class="col-md-6 d-flex">
+                <div class="card h-100 w-100 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-fire"></i> Heat Control 
+                            <span id="heatStatus" class="badge bg-secondary">--</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">PTC heater for temperature regulation.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fan Control Card -->
+            <div class="col-md-6 d-flex">
+                <div class="card h-100 w-100 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-fan"></i> Fan Control 
+                            <span id="fanStatus" class="badge bg-secondary">--</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Circulation fan for air movement.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Settings and OTA Service -->
+        <div class="row mb-4">
+            <!-- Settings Card -->
+            <div class="col-md-6 d-flex">
+                <div class="card h-100 w-100">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-gear"></i> Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Configure device settings and parameters.</p>
+                        <a href="/settings" class="btn btn-primary">Open Settings</a>
+                        <a href="/getJsonSettings" target="_blank" class="btn btn-outline-secondary ms-2">View JSON</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTA Service Card -->
+            <div class="col-md-6 d-flex">
+                <div class="card h-100 w-100">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-cloud-arrow-up"></i> OTA Service 
+                            <span id="otaStatus" class="badge bg-secondary">--</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Over-the-air firmware updates.</p>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="otaAction('otaStart')">Start OTA</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="otaAction('otaStop')">Stop OTA</button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="otaAction('espRestart', 'Are you sure you want to restart the device?')">Restart Device</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WiFi Configuration Row (only show in AP mode or if WiFi is disabled) -->
+        <div class="row mb-4" id="wifiConfigRow" style="display: none;">
+            <div class="col-md-6 mx-auto">
+                <div class="card h-100 w-100 border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-wifi"></i> WiFi Configuration 
+                            <span id="wifiMode" class="badge bg-light text-dark">--</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted" id="wifiConfigDescription">Configure WiFi connection settings.</p>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" id="scanWifiBtn" onclick="scanAndShowModal()">Configure WiFi</button>
+                            <button type="button" class="btn btn-outline-secondary" id="disableWifiBtn" onclick="disableWiFiAndStayAP()">Disable WiFi (Stay in AP Mode)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WiFi Configuration Modal -->
+    <div class="modal fade" id="wifiModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">WiFi Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="scanningMessage" class="text-center mb-3" style="display:none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Scanning...</span>
+                        </div>
+                        <p class="mt-2">Scanning for WiFi networks...</p>
+                    </div>
+                    <form id="wifiConfigForm">
+                        <div class="mb-3">
+                            <label for="networkSelect" class="form-label">Available Networks</label>
+                            <div class="input-group">
+                                <select class="form-select" id="networkSelect" required>
+                                    <option value="">Loading networks...</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary" id="refreshNetworksBtn" onclick="refreshWiFiNetworks()">
+                                    🔄 Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="wifiPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="wifiPassword" placeholder="Leave empty for open networks">
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Connect to Network</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version Change Modal -->
+    <div class="modal fade" id="versionChangeModal" tabindex="-1" aria-labelledby="versionChangeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="versionChangeModalLabel">
+                        <i class="bi bi-exclamation-triangle"></i> Application Updated
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">The application version has changed:</p>
+                    <ul class="list-unstyled">
+                        <li><strong>Previous:</strong> <span id="oldVersion" class="text-muted"></span></li>
+                        <li><strong>Current:</strong> <span id="newVersion" class="text-success"></span></li>
+                    </ul>
+                    <p class="mb-0">It's recommended to reload the page to ensure you have the latest interface features.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Current</button>
+                    <button type="button" class="btn btn-primary" onclick="location.reload()">Reload Page</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript from separate file -->
+    <script src="/js/main.js"></script>
+</body>
+</html>
