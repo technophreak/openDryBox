@@ -21,6 +21,7 @@ class WebServer {
     void getSettingsPage();
     void getJsonStatus();
     void getJsonSettings();
+    void getJsonFiles();
     void setSettings();
     void otaStart();
     void otaStop();
@@ -32,7 +33,10 @@ class WebServer {
     void handleNotFound();
     void espRestart();
     void serveStaticFile(const String& path, const String& contentType);
-    void debugListLittleFSFiles(); // Debug function to list files
+    String getAllFilesJson(); // Get all files with sizes for debugging and progress calculation
+    String processTemplate(String content); // Centralized template processing
+    String getContentType(const String& path); // Determine MIME type from file extension
+    void createDynamicStaticRoutes(); // Create routes based on filesystem scan
 
     ESP32WebServer* restServer;
     JsonObject objSettings;

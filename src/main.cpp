@@ -1,6 +1,6 @@
 // Program constants definition
 const char* PROGRAM_NAME = "openDryBox";
-const char* PROGRAM_VERSION = "v0.0.13";
+const char* PROGRAM_VERSION = "v0.0.14";
 
 // Load required libraries
 #include <Arduino.h>

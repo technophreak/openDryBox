@@ -3,6 +3,161 @@
 #include <ArduinoOTA.h>
 #include <LittleFS.h>
 
+// Determine content type based on file extension
+String WebServer::getContentType(const String& path) {
+  if (path.endsWith(".html") || path.endsWith(".htm")) return "text/html";
+  if (path.endsWith(".css")) return "text/css";
+  if (path.endsWith(".js")) return "text/javascript";
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  if (path.endsWith(".gif")) return "image/gif";
+  if (path.endsWith(".ico")) return "image/x-icon";
+  if (path.endsWith(".svg")) return "image/svg+xml";
+  if (path.endsWith(".woff")) return "font/woff";
+  if (path.endsWith(".woff2")) return "font/woff2";
+  if (path.endsWith(".ttf")) return "font/ttf";
+  if (path.endsWith(".eot")) return "application/vnd.ms-fontobject";
+  if (path.endsWith(".json")) return "application/json";
+  if (path.endsWith(".xml")) return "text/xml";
+  if (path.endsWith(".txt")) return "text/plain";
+  return "application/octet-stream"; // Default binary type
+}
+
+// Create dynamic static file routes based on filesystem scan
+void WebServer::createDynamicStaticRoutes() {
+  Serial.println("Setting up dynamic static file routes...");
+  
+  // Use existing getAllFilesJson() function to get file list
+  String filesJsonStr = this->getAllFilesJson();
+  Serial.print("Files JSON: ");
+  Serial.println(filesJsonStr);
+  
+  // Parse the JSON response
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, filesJsonStr);
+  
+  if (error) {
+    Serial.print("Failed to parse files JSON: ");
+    Serial.println(error.c_str());
+    return;
+  }
+  
+  JsonArray files = doc["files"];
+  if (!files) {
+    Serial.println("No files array found in JSON");
+    return;
+  }
+  
+  Serial.print("Found ");
+  Serial.print(files.size());
+  Serial.println(" files to create routes for");
+  
+  // Create routes for each file found
+  int routeCount = 0;
+  for (JsonObject file : files) {
+    String filePath = file["path"].as<String>();
+    String contentType = this->getContentType(filePath);
+    
+    Serial.print("Processing file: ");
+    Serial.print(filePath);
+    Serial.print(" -> ");
+    Serial.println(contentType);
+    
+    // Determine if this file should have verbose logging
+    bool verbose = (filePath.endsWith(".js") || filePath.endsWith(".css") || filePath.endsWith(".ico"));
+    
+    // Create the route using std::function to avoid memory issues
+    this->restServer->on(filePath.c_str(), HTTP_GET, [this, filePath, contentType, verbose]() {
+      if (verbose) {
+        Serial.print("Static file route called: ");
+        Serial.println(filePath);
+      }
+      this->serveStaticFile(filePath, contentType);
+    });
+    
+    routeCount++;
+    Serial.print("  Created route: ");
+    Serial.print(filePath);
+    Serial.print(" -> ");
+    Serial.println(contentType);
+  }
+  
+  Serial.print("Successfully created ");
+  Serial.print(routeCount);
+  Serial.println(" dynamic static file routes");
+}
+
+// Get all files with sizes - used for both debugging and progress calculation
+String WebServer::getAllFilesJson() {
+  JsonDocument doc;
+  JsonArray files = doc["files"].to<JsonArray>();
+  
+  // Simple approach: scan root directory and subdirectories manually
+  File root = LittleFS.open("/");
+  if (root && root.isDirectory()) {
+    File file = root.openNextFile();
+    while (file) {
+      String fileName = String(file.name());
+      
+      if (!file.isDirectory()) {
+        JsonObject fileObj = files.add<JsonObject>();
+        // Store full path for root files (add leading slash if not present)
+        String fullPath = fileName.startsWith("/") ? fileName : "/" + fileName;
+        fileObj["path"] = fullPath;
+        fileObj["size"] = file.size();
+        fileObj["type"] = "file";
+      }
+      file = root.openNextFile();
+    }
+    root.close();
+  }
+  
+  // Check common subdirectories
+  const char* subdirs[] = {"/css", "/js", "/css/fonts"};
+  for (const char* subdir : subdirs) {
+    File dir = LittleFS.open(subdir);
+    if (dir && dir.isDirectory()) {
+      File file = dir.openNextFile();
+      while (file) {
+        String fileName = String(file.name());
+        
+        if (!file.isDirectory()) {
+          JsonObject fileObj = files.add<JsonObject>();
+          // Store full path by combining subdir + filename
+          String fullPath = String(subdir) + "/" + fileName;
+          fileObj["path"] = fullPath;
+          fileObj["size"] = file.size();
+          fileObj["type"] = "file";
+        }
+        file = dir.openNextFile();
+      }
+      dir.close();
+    }
+  }
+  
+  // Add summary info
+  doc["total_files"] = files.size();
+  doc["timestamp"] = millis();
+  
+  // Use compact JSON format instead of pretty print
+  String result;
+  serializeJson(doc, result);
+  return result;
+}
+
+// Centralized template replacement function
+String WebServer::processTemplate(String content) {
+  String deviceName = this->myPreferences->getString("device_name");
+  if (deviceName.isEmpty()) deviceName = "openDryBox";
+  
+  content.replace("{{DEVICE_NAME}}", deviceName);
+  content.replace("{{PROGRAM_NAME}}", String(PROGRAM_NAME));
+  content.replace("{{PROGRAM_VERSION}}", String(PROGRAM_VERSION));
+  content.replace("{{AJAX_TIMEOUT}}", String(this->myPreferences->getInt("ajax_timeout") * 1000));
+  
+  return content;
+}
+
 // Serving Home Page
 void WebServer::getHomePage() {
   // Try to load HTML from file
@@ -24,14 +179,8 @@ void WebServer::getHomePage() {
   Serial.print(fileSize);
   Serial.println(" bytes");
 
-  // Replace template placeholders with actual values
-  String deviceName = this->myPreferences->getString("device_name");
-  if (deviceName.isEmpty()) deviceName = "openDryBox";
-  
-  htmlContent.replace("{{DEVICE_NAME}}", deviceName);
-  htmlContent.replace("{{PROGRAM_NAME}}", String(PROGRAM_NAME));
-  htmlContent.replace("{{PROGRAM_VERSION}}", String(PROGRAM_VERSION));
-  htmlContent.replace("{{AJAX_TIMEOUT}}", String(this->myPreferences->getInt("ajax_timeout") * 1000));
+  // Process template replacements
+  htmlContent = processTemplate(htmlContent);
 
   this->restServer->send(200, "text/html", htmlContent);
 }
@@ -271,6 +420,12 @@ void WebServer::getJsonSettings() {
   this->restServer->send(200, F("application/json"), buf);
 //      Serial.print(F("done."));
 }
+
+// Get a list of files
+void WebServer::getJsonFiles() {
+  String allFilesJson = getAllFilesJson();
+  this->restServer->send(200, F("application/json"), allFilesJson);
+}
  
 // Set Settings
 void WebServer::setSettings() {
@@ -479,6 +634,7 @@ void WebServer::initRoutes() {
     this->restServer->on(F("/settings"), HTTP_GET, [this]() { this->getSettingsPage(); });
     this->restServer->on(F("/getJsonStatus"), HTTP_GET, [this]() { this->getJsonStatus(); });
     this->restServer->on(F("/getJsonSettings"), HTTP_GET, [this]() { this->getJsonSettings(); });
+    this->restServer->on(F("/getJsonFiles"), HTTP_GET, [this]() { this->getJsonFiles(); });
     this->restServer->on(F("/setSettings"), HTTP_GET, [this]() { this->setSettings(); });
     this->restServer->on(F("/otaStart"), HTTP_GET, [this]() { this->otaStart(); });
     this->restServer->on(F("/otaStop"), HTTP_GET, [this]() { this->otaStop(); });
@@ -488,35 +644,8 @@ void WebServer::initRoutes() {
     this->restServer->on(F("/disableWiFi"), HTTP_POST, [this]() { this->disableWiFi(); });
     this->restServer->on(F("/espRestart"), HTTP_GET, [this]() { this->espRestart(); });
 
-    // Static file serving for /js/main.js
-    this->restServer->on("/js/main.js", HTTP_GET, [this]() { this->serveStaticFile("/js/main.js", "text/javascript"); });
-    
-    // Static file serving - setup routes from array for easier maintenance
-    Serial.println("Setting up static file routes...");
-    
-    struct StaticFileRoute {
-        const char* path;
-        const char* contentType;
-        bool verbose; // Whether to log when route is called
-    };
-    
-    StaticFileRoute staticFiles[] = {
-        {"/css/bootstrap.min.css", "text/css", true},
-        {"/css/bootstrap-icons.css", "text/css", true},
-        {"/js/bootstrap.bundle.min.js", "text/javascript", true},
-        {"/css/fonts/bootstrap-icons.woff2", "font/woff2", false},
-        {"/css/fonts/bootstrap-icons.woff", "font/woff", false}
-    };
-    
-    for (auto& route : staticFiles) {
-        this->restServer->on(route.path, HTTP_GET, [this, route]() { 
-            if (route.verbose) {
-                Serial.print("Static file route called: ");
-                Serial.println(route.path);
-            }
-            this->serveStaticFile(route.path, route.contentType); 
-        });
-    }
+    // Dynamic static file serving - automatically create routes based on filesystem
+    this->createDynamicStaticRoutes();
 
     // Set not found response
     this->restServer->onNotFound([this]() { this->handleNotFound(); });
@@ -540,8 +669,10 @@ WebServer::WebServer(JsonObject objSettings, Preferences* myPreferences) {
   this->scanComplete = false;
   this->scanStartTime = 0;
 
-  // Debug: List LittleFS files
-  this->debugListLittleFSFiles();
+  // Debug: Print all LittleFS files as JSON
+  Serial.println("=== LittleFS Files (JSON Debug) ===");
+  Serial.println(getAllFilesJson());
+  Serial.println("=== End JSON Debug ===");
 
   this->initRoutes();
 }
@@ -855,7 +986,7 @@ void WebServer::serveStaticFile(const String& path, const String& contentType) {
   Serial.println(" bytes");
   
   // Check if this file needs template processing
-  bool needsTemplateProcessing = (path == "/js/main.js");
+  bool needsTemplateProcessing = (path == "/js/main.js" || path == "/index.html");
   
   if (needsTemplateProcessing) {
     Serial.println("Applying template processing...");
@@ -864,10 +995,8 @@ void WebServer::serveStaticFile(const String& path, const String& contentType) {
     String content = file.readString();
     file.close();
     
-    // Apply template replacements
-    content.replace("{{AJAX_TIMEOUT}}", String(this->myPreferences->getInt("ajax_timeout") * 1000));
-    content.replace("{{PROGRAM_NAME}}", String(PROGRAM_NAME));
-    content.replace("{{PROGRAM_VERSION}}", String(PROGRAM_VERSION));
+    // Apply centralized template processing
+    content = processTemplate(content);
     
     // Write processed content to temporary file
     String tempPath = path + ".tmp";
@@ -903,48 +1032,6 @@ void WebServer::serveStaticFile(const String& path, const String& contentType) {
     file.close();
     Serial.println("File streamed successfully");
   }
-}
-
-// Debug function to list LittleFS files
-void WebServer::debugListLittleFSFiles() {
-  Serial.println("=== LittleFS File Listing ===");
-  File root = LittleFS.open("/");
-  if (!root) {
-    Serial.println("ERROR: Failed to open root directory");
-    return;
-  }
-  
-  if (!root.isDirectory()) {
-    Serial.println("ERROR: Root is not a directory");
-    return;
-  }
-  
-  File file = root.openNextFile();
-  while (file) {
-    if (file.isDirectory()) {
-      Serial.print("DIR:  ");
-      Serial.println(file.name());
-      
-      // List files in subdirectory
-      File subfile = file.openNextFile();
-      while (subfile) {
-        Serial.print("  FILE: ");
-        Serial.print(subfile.name());
-        Serial.print(" (");
-        Serial.print(subfile.size());
-        Serial.println(" bytes)");
-        subfile = file.openNextFile();
-      }
-    } else {
-      Serial.print("FILE: ");
-      Serial.print(file.name());
-      Serial.print(" (");
-      Serial.print(file.size());
-      Serial.println(" bytes)");
-    }
-    file = root.openNextFile();
-  }
-  Serial.println("=== End File Listing ===");
 }
 
 // Destructor

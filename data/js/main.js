@@ -1,3 +1,6 @@
+// Application Main Functions
+// This file contains the core application functionality after resource loading is complete
+
 // Global variables and configuration
 let connectionState = 'pending';
 let reconnectInterval = 3000;
@@ -11,128 +14,16 @@ let fetchTimeout = {{AJAX_TIMEOUT}};            // Will be replaced by server
 let currentVersion = '{{PROGRAM_VERSION}}';     // Will be replaced by server
 let currentProgramName = '{{PROGRAM_NAME}}';    // Will be replaced by server
 
-// Sequential resource loader (CSS then JS)
-function loadResourceSequentially(resources, index = 0) {
-    if (index >= resources.length) {
-        console.log('All resources loaded successfully');
-        
-        // Wait for fonts to be ready before initializing application
-        waitForFontsAndInitialize();
-        return;
-    }
-    
-    const resource = resources[index];
-    let element;
-    
-    if (resource.type === 'css') {
-        element = document.createElement('link');
-        element.rel = 'stylesheet';
-        element.type = 'text/css';
-        element.href = resource.src;
-    } else {
-        element = document.createElement('script');
-        element.src = resource.src;
-        element.type = 'text/javascript';
-    }
-    
-    element.onload = function() {
-        console.log('Loaded:', resource.src);
-        // Load next resource immediately
-        loadResourceSequentially(resources, index + 1);
-    };
-    element.onerror = function() {
-        console.error('Failed to load:', resource.src);
-        // Continue loading next resource even if current fails
-        loadResourceSequentially(resources, index + 1);
-    };
-    
-    document.head.appendChild(element);
-}
-
-// Wait for fonts to load before initializing application
-function waitForFontsAndInitialize() {
-    console.log('Waiting for fonts to load...');
-    
-    // Check if Font Loading API is available
-    if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(function() {
-            console.log('Fonts are ready');
-            initializeAfterResourcesReady();
-        }).catch(function() {
-            console.log('Font loading timeout, proceeding anyway');
-            initializeAfterResourcesReady();
-        });
-        
-        // Fallback timeout in case fonts take too long
-        setTimeout(function() {
-            console.log('Font loading timeout (5s), proceeding anyway');
-            initializeAfterResourcesReady();
-        }, 5000);
-    } else {
-        // Fallback for browsers without Font Loading API
-        console.log('Font Loading API not available, using timeout');
-        setTimeout(function() {
-            initializeAfterResourcesReady();
-        }, 1000);
-    }
-}
-
-// Initialize application after all resources and fonts are ready
-function initializeAfterResourcesReady() {
-    console.log('All resources and fonts ready, initializing application...');
-    
-    setTimeout(function() {
-        // Trigger main.js initialization
-        if (window.initializeApplication && typeof window.initializeApplication === 'function') {
-            console.log('Calling initializeApplication...');
-            window.initializeApplication();
-        } else {
-            console.log('initializeApplication not found, waiting...');
-            setTimeout(function() {
-                if (window.initializeApplication && typeof window.initializeApplication === 'function') {
-                    console.log('Calling initializeApplication (delayed)...');
-                    window.initializeApplication();
-                }
-            }, 200);
-        }
-        
-        // Hide loading overlay after initialization
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-        }
-    }, 300);
-}
-
-// Start sequential resource loading when page is fully loaded
-function startSequentialLoading() {
-    console.log('Page fully loaded, starting sequential resource loading...');
-    
-    const resourcesToLoad = [
-        { type: 'css', src: '/css/bootstrap.min.css' },
-        { type: 'js', src: '/js/bootstrap.bundle.min.js' },
-        { type: 'css', src: '/css/bootstrap-icons.css' }
-    ];
-    
-    loadResourceSequentially(resourcesToLoad);
-}
-
 // Application initialization function (called after all resources are loaded)
 function initializeApplication() {
   console.log('Initializing application...');
   
-  // Wait a moment for Bootstrap to be fully ready and UI to stabilize
+  // Wait for Bootstrap to be fully ready
   setTimeout(function() {
     // Set up event listeners
     setupEventListeners();
-    
-    // Start the main application logic
-    updateStatus();
-    startRegularUpdates();
-    updateWiFiConfigUI();
-    
     console.log('Application initialized successfully!');
-  }, 1000); // Increased from 200ms to 1000ms
+  }, 1000);
 }
 
 // Utility function for fetch requests with timeout
@@ -721,12 +612,8 @@ function setupEventListeners() {
     });
   }
 }
+
 // Setup event listeners when DOM is ready  
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
-});
-
-// Start sequential loading when page is fully loaded
-window.addEventListener('load', () => {
-  startSequentialLoading();
 });
