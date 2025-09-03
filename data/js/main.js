@@ -611,6 +611,266 @@ function setupEventListeners() {
         .catch(error => showToast('Configuration failed: ' + error.message, 'error'));
     });
   }
+
+  // Settings form submission
+  const settingsForm = document.getElementById('settingsForm');
+  if (settingsForm) {
+    settingsForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      saveSettings();
+    });
+  }
+}
+
+// Settings management functions
+let originalSettingsValues = {};
+
+// Open settings modal and load configuration
+function openSettingsModal() {
+  const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+  modal.show();
+  loadSettingsModal();
+}
+
+// Load settings configuration from server
+function loadSettingsModal() {
+  const loadingMsg = document.getElementById('settingsLoadingMessage');
+  const settingsForm = document.getElementById('settingsForm');
+  const settingsContent = document.getElementById('settingsContent');
+  
+  // Show loading, hide form
+  loadingMsg.style.display = 'block';
+  settingsForm.style.display = 'none';
+  
+  fetchWithTimeout('/getJsonConfig')
+    .then(response => response.json())
+    .then(data => {
+      // Clear previous content
+      settingsContent.innerHTML = '';
+      originalSettingsValues = {};
+      
+      // Group settings by category
+      const categories = {
+        'Device': ['device_name'],
+        'WiFi & Network': ['wifi_enabled', 'wifi_ssid', 'wifi_password', 'wifi_timeout', 'wifi_retries', 'network_dhcp', 'network_ip', 'network_subnet', 'network_gateway', 'network_dns_1', 'network_dns_2'],
+        'Access Point': ['ap_ssid', 'ap_password'],
+        'Web Server': ['webserver_port', 'ajax_timeout', 'ota_password'],
+        'Sensor': ['sensor0_name', 'sensor0_pin', 'sensor0_type', 'sensor0_toffset', 'sensor0_hoffset'],
+        'Hardware Control': ['mosfet_fan_pin', 'mosfet_ptc_pin'],
+        'Temperature Control': ['ambEnabled', 'ambTempTarget']
+      };
+      
+      // Generate form sections
+      for (const [categoryName, categoryKeys] of Object.entries(categories)) {
+        const categoryHtml = generateCategoryHtml(categoryName, categoryKeys, data);
+        if (categoryHtml) {
+          settingsContent.insertAdjacentHTML('beforeend', categoryHtml);
+        }
+      }
+      
+      // Track original values for change detection
+      trackOriginalSettingsValues();
+      
+      // Setup change tracking
+      setupSettingsChangeTracking();
+      
+      // Hide loading, show form
+      loadingMsg.style.display = 'none';
+      settingsForm.style.display = 'block';
+      
+      showToast('Settings loaded successfully', 'success');
+    })
+    .catch(error => {
+      loadingMsg.style.display = 'none';
+      settingsContent.innerHTML = '<div class="alert alert-danger">Failed to load settings: ' + error.message + '</div>';
+      showToast('Failed to load settings: ' + error.message, 'error');
+    });
+}
+
+// Generate HTML for a settings category
+function generateCategoryHtml(categoryName, categoryKeys, settingsData) {
+  let categoryHtml = '';
+  let hasVisibleFields = false;
+  
+  // Filter keys that exist in the settings data and are editable
+  const validKeys = categoryKeys.filter(key => {
+    const setting = settingsData[key];
+    return setting && (setting.editable !== false);
+  });
+  
+  if (validKeys.length === 0) return '';
+  
+  categoryHtml += '<div class="card mb-3">';
+  categoryHtml += '<div class="card-header bg-light">';
+  categoryHtml += '<h6 class="card-title mb-0">' + categoryName + '</h6>';
+  categoryHtml += '</div>';
+  categoryHtml += '<div class="card-body">';
+  
+  validKeys.forEach(key => {
+    const setting = settingsData[key];
+    const fieldHtml = generateFieldHtml(key, setting);
+    if (fieldHtml) {
+      categoryHtml += fieldHtml;
+      hasVisibleFields = true;
+    }
+  });
+  
+  categoryHtml += '</div>';
+  categoryHtml += '</div>';
+  
+  return hasVisibleFields ? categoryHtml : '';
+}
+
+// Generate HTML for individual setting field
+function generateFieldHtml(key, setting) {
+  const type = setting.type;
+  const label = setting.label || key;
+  const description = setting.description || '';
+  const value = setting.value;
+  const isObfuscated = setting.obfuscate || false;
+  
+  let fieldHtml = '<div class="mb-3">';
+  
+  if (type === 'boolean') {
+    fieldHtml += '<div class="form-check">';
+    fieldHtml += '<input class="form-check-input settings-field" type="checkbox" id="' + key + '" name="' + key + '"' + (value ? ' checked' : '') + '>';
+    fieldHtml += '<label class="form-check-label" for="' + key + '">' + label + '</label>';
+    fieldHtml += '</div>';
+  } else {
+    fieldHtml += '<label for="' + key + '" class="form-label">' + label + '</label>';
+    
+    if (type === 'string') {
+      const inputType = isObfuscated ? 'password' : 'text';
+      const displayValue = isObfuscated ? '*********' : (value || '');
+      fieldHtml += '<input type="' + inputType + '" class="form-control settings-field" id="' + key + '" name="' + key + '" value="' + displayValue + '">';
+    } else if (type === 'integer') {
+      fieldHtml += '<input type="number" class="form-control settings-field" id="' + key + '" name="' + key + '" value="' + (value || 0) + '">';
+    } else if (type === 'float') {
+      let step = '0.01';
+      if (setting.maximum !== undefined && setting.maximum <= 100) step = '0.1';
+      fieldHtml += '<input type="number" step="' + step + '" class="form-control settings-field" id="' + key + '" name="' + key + '" value="' + (value || 0) + '">';
+    }
+  }
+  
+  if (description) {
+    fieldHtml += '<div class="form-text">' + description + '</div>';
+  }
+  
+  fieldHtml += '</div>';
+  
+  return fieldHtml;
+}
+
+// Track original values for change detection
+function trackOriginalSettingsValues() {
+  const inputs = document.querySelectorAll('.settings-field');
+  inputs.forEach(input => {
+    if (input.type === 'checkbox') {
+      originalSettingsValues[input.name] = input.checked;
+    } else {
+      originalSettingsValues[input.name] = input.value;
+    }
+  });
+}
+
+// Setup change tracking for settings fields
+function setupSettingsChangeTracking() {
+  const inputs = document.querySelectorAll('.settings-field');
+  inputs.forEach(input => {
+    input.addEventListener('input', () => markSettingAsChanged(input));
+    input.addEventListener('change', () => markSettingAsChanged(input));
+  });
+}
+
+// Mark setting field as changed
+function markSettingAsChanged(element) {
+  element.classList.add('border-warning');
+  element.classList.remove('border-success');
+}
+
+// Save settings to server
+function saveSettings() {
+  const inputs = document.querySelectorAll('.settings-field');
+  const changedSettings = {};
+  let hasChanges = false;
+  
+  inputs.forEach(input => {
+    let currentValue;
+    if (input.type === 'checkbox') {
+      currentValue = input.checked;
+    } else if (input.type === 'number') {
+      currentValue = parseFloat(input.value) || 0;
+    } else {
+      currentValue = input.value;
+    }
+    
+    // Only include changed values (skip obfuscated fields showing asterisks)
+    if (currentValue !== originalSettingsValues[input.name] && 
+        !(input.type === 'password' && input.value === '*********')) {
+      changedSettings[input.name] = currentValue;
+      hasChanges = true;
+    }
+  });
+  
+  if (!hasChanges) {
+    showToast('No changes detected', 'info');
+    return;
+  }
+  
+  // Disable form while saving
+  const submitBtn = document.querySelector('#settingsForm button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving...';
+  
+  fetchWithTimeout('/setJsonSettings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(changedSettings)
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message, 'success');
+        
+        // Update original values to reflect saved state
+        trackOriginalSettingsValues();
+        
+        // Remove warning borders from all fields
+        const inputs = document.querySelectorAll('.settings-field');
+        inputs.forEach(input => {
+          input.classList.remove('border-warning');
+          input.classList.add('border-success');
+        });
+        
+        // Check if restart might be needed
+        const criticalSettings = ['wifi_enabled', 'wifi_ssid', 'wifi_password', 'webserver_port'];
+        const restartNeeded = Object.keys(changedSettings).some(key => criticalSettings.includes(key));
+        
+        if (restartNeeded && data.changedCount > 0) {
+          showToast('Some changes may require a device restart to take effect', 'info');
+        }
+        
+        // Close modal after short delay
+        setTimeout(() => {
+          if (typeof bootstrap !== 'undefined') {
+            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+          }
+        }, 1500);
+        
+      } else {
+        showToast(data.message || 'Failed to save settings', 'error');
+      }
+    })
+    .catch(error => {
+      showToast('Failed to save settings: ' + error.message, 'error');
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    });
 }
 
 // Setup event listeners when DOM is ready  

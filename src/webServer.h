@@ -18,11 +18,11 @@ class WebServer {
   private:
     void initRoutes();
     void getHomePage();
-    void getSettingsPage();
     void getJsonStatus();
     void getJsonSettings();
+    void getJsonConfig();
+    void setJsonSettings();
     void getJsonFiles();
-    void setSettings();
     void otaStart();
     void otaStop();
     void scanWiFiNetworks(); // Deprecated but still present
