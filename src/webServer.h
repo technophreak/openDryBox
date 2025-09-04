@@ -37,6 +37,8 @@ class WebServer {
     String processTemplate(String content); // Centralized template processing
     String getContentType(const String& path); // Determine MIME type from file extension
     void createDynamicStaticRoutes(); // Create routes based on filesystem scan
+    int getCacheDuration(const String& path); // Determine cache duration based on file type
+    void setCacheHeaders(const String& path); // Set appropriate caching headers
 
     ESP32WebServer* restServer;
     JsonObject objSettings;

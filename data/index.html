@@ -9,7 +9,132 @@
     <link rel="icon" href="data:," id="favicon-placeholder">
     
     <!-- Load main.js early so functions are available, but don't execute until sequential loading completes -->
-    <script src="/js/init.js"></script>
+    <script src="/js/init.js" onerror="handleInitFailure()" onload="initScriptLoaded = true"></script>
+    
+    <!-- Fallback mechanism if init.js fails to load -->
+    <script>
+        let initScriptLoaded = false;
+        let fallbackShown = false;
+        
+        function handleInitFailure() {
+            console.error('Failed to load init.js');
+            showFallbackInterface();
+        }
+        
+        function showFallbackInterface() {
+            if (fallbackShown) return;
+            fallbackShown = true;
+            
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.innerHTML = `
+                    <div style="text-align: center; width: 350px;">
+                        <div style="margin-bottom: 20px;">
+                            <div style="width: 48px; height: 48px; background: #e74c3c; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+                                <span style="color: white; font-size: 24px;">!</span>
+                            </div>
+                            <h4 style="color: #e74c3c; margin: 0 0 10px 0;">Loading Failed</h4>
+                            <p style="color: #7f8c8d; margin: 0 0 20px 0; font-size: 14px;">
+                                Unable to load essential application files. This might be due to network issues or server problems.
+                            </p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <button onclick="retryLoading()" style="background: #3498db; color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-right: 10px;">
+                                🔄 Retry Loading
+                            </button>
+                            <button onclick="hardRefreshPage()" style="background: #e67e22; color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 16px; cursor: pointer;">
+                                🔄 Hard Refresh
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #17a2b8;">
+                            <h6 style="margin: 0 0 10px 0; color: #17a2b8;">Troubleshooting Tips:</h6>
+                            <ul style="margin: 0; padding-left: 20px; text-align: left; font-size: 13px; color: #6c757d;">
+                                <li>Check your network connection</li>
+                                <li>Try hard refresh to bypass cache</li>
+                                <li>Wait a moment and retry</li>
+                                <li>Check if the ESP32 is still running</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function retryLoading() {
+            console.log('Retrying resource loading...');
+            location.reload();
+        }
+        
+        function hardRefreshPage() {
+            console.log('Performing hard refresh...');
+            // Simple reload - the server now properly handles cache headers
+            location.reload();
+        }
+        
+        // Track last activity to detect if loading is progressing
+        window.lastLoadingActivity = Date.now();
+        
+        // Function to update activity timestamp (called from init.js)
+        window.updateLoadingActivity = function() {
+            window.lastLoadingActivity = Date.now();
+            console.log('Loading activity updated at', new Date().toISOString());
+        };
+        
+        // Debug function to check current state
+        window.debugLoadingState = function() {
+            console.log('=== Loading State Debug ===');
+            console.log('initScriptLoaded:', initScriptLoaded);
+            console.log('window.initializationStarted:', window.initializationStarted);
+            console.log('window.networkDetectionComplete:', window.networkDetectionComplete);
+            console.log('fallbackShown:', fallbackShown);
+            console.log('lastLoadingActivity:', new Date(window.lastLoadingActivity).toISOString());
+        };
+        
+        // Set a timeout to detect if initialization doesn't start
+        setTimeout(function() {
+            // Only show fallback if init.js actually failed to set the initialization flag
+            if (typeof window.initializationStarted === 'undefined' && !fallbackShown) {
+                console.warn('Initialization timeout - init.js did not set initializationStarted flag - showing fallback interface');
+                showFallbackInterface();
+            } else if (window.initializationStarted) {
+                console.log('Initialization started successfully, init.js is working');
+            }
+        }, 10000); // 10 seconds timeout
+        
+        // Check for stalled loading - only trigger if no activity for extended period
+        function checkForStalledLoading() {
+            const timeSinceActivity = Date.now() - window.lastLoadingActivity;
+            const hasNetworkDetection = typeof window.networkDetectionComplete !== 'undefined';
+            
+            // Debug current state
+            console.log('=== Stall Check ===');
+            console.log('hasNetworkDetection:', hasNetworkDetection);
+            console.log('fallbackShown:', fallbackShown);
+            console.log('timeSinceActivity:', timeSinceActivity/1000, 'seconds');
+            console.log('initializationStarted:', window.initializationStarted);
+            
+            if (!hasNetworkDetection && !fallbackShown && timeSinceActivity > 20000) {
+                console.warn('Loading appears stalled (no activity for ' + (timeSinceActivity/1000) + 's) - showing fallback interface');
+                showFallbackInterface();
+            } else if (!hasNetworkDetection && timeSinceActivity < 20000) {
+                console.log('Loading active (last activity ' + (timeSinceActivity/1000) + 's ago), checking again...');
+                setTimeout(checkForStalledLoading, 5000);
+            } else if (hasNetworkDetection) {
+                console.log('Network detection completed, stopping stall checks');
+            }
+        }
+        
+        // Start monitoring for stalled loading after initial delay
+        setTimeout(checkForStalledLoading, 15000);
+        
+        // Early debug check to see if everything is working
+        setTimeout(function() {
+            console.log('=== 5-second status check ===');
+            window.debugLoadingState();
+        }, 5000);
+    </script>
     
     <!-- Bootstrap Icons, CSS, and favicon will be loaded sequentially via JavaScript to avoid concurrency issues -->
 </head>
@@ -158,6 +283,23 @@
                         <p class="text-muted">Configure device settings and parameters.</p>
                         <button type="button" class="btn btn-primary" onclick="openSettingsModal()">Open Settings</button>
                         <a href="/getJsonSettings" target="_blank" class="btn btn-outline-secondary ms-2">View JSON</a>
+                        <div class="dropdown d-inline ms-2">
+                            <button class="btn btn-outline-info dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><button class="dropdown-item" onclick="location.reload()">
+                                    <i class="bi bi-arrow-clockwise"></i> Normal Reload
+                                </button></li>
+                                <li><button class="dropdown-item" onclick="hardReloadPage()">
+                                    <i class="bi bi-arrow-clockwise text-warning"></i> Hard Reload (Bypass Cache)
+                                </button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><small class="dropdown-item-text text-muted">
+                                    Use hard reload if you suspect cached files are outdated
+                                </small></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -261,11 +403,17 @@
                         <li><strong>Previous:</strong> <span id="oldVersion" class="text-muted"></span></li>
                         <li><strong>Current:</strong> <span id="newVersion" class="text-success"></span></li>
                     </ul>
-                    <p class="mb-0">It's recommended to reload the page to ensure you have the latest interface features.</p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Recommended:</strong> Reload the page to ensure you have the latest interface features. 
+                        This will bypass the cache to download all updated files.
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Current</button>
-                    <button type="button" class="btn btn-primary" onclick="location.reload()">Reload Page</button>
+                    <button type="button" class="btn btn-primary" onclick="hardReloadPage()">
+                        <i class="bi bi-arrow-clockwise"></i> Reload Page
+                    </button>
                 </div>
             </div>
         </div>

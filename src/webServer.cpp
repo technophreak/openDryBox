@@ -160,6 +160,31 @@ String WebServer::processTemplate(String content) {
 
 // Serving Home Page
 void WebServer::getHomePage() {
+  // Check if client is requesting no-cache (Ctrl+F5 or hard refresh)
+  bool forceNoCache = false;
+  if (this->restServer->hasHeader("Cache-Control")) {
+    String clientCacheControl = this->restServer->header("Cache-Control");
+    if (clientCacheControl.indexOf("no-cache") >= 0 || clientCacheControl.indexOf("no-store") >= 0) {
+      forceNoCache = true;
+      Serial.println("Client requested no-cache for homepage, honoring request");
+    }
+  }
+  
+  // Check for Pragma: no-cache (older browsers)
+  if (this->restServer->hasHeader("Pragma")) {
+    String pragma = this->restServer->header("Pragma");
+    if (pragma.indexOf("no-cache") >= 0) {
+      forceNoCache = true;
+      Serial.println("Client sent Pragma: no-cache for homepage, honoring request");
+    }
+  }
+
+  // Always disable cache for homepage during development
+  this->restServer->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  this->restServer->sendHeader("Pragma", "no-cache");
+  this->restServer->sendHeader("Expires", "0");
+  Serial.println("Serving homepage with no-cache headers (development mode)");
+
   // Try to load HTML from file
   File file = LittleFS.open("/index.html", "r");
   if (!file) {
@@ -914,6 +939,109 @@ void WebServer::disableWiFi() {
   Serial.println("WiFi disabled in settings");
 }
 
+// Determine cache duration in seconds based on file type
+int WebServer::getCacheDuration(const String& path) {
+  // Critical files - no cache during development
+  if (path == "/index.html" || path == "/js/init.js" || path == "/js/main.js") {
+    return 0; // No cache for critical development files
+  }
+  
+  // Static assets that rarely change - medium cache (reduced for easier testing)
+  if (path.endsWith(".css") || path.endsWith(".js")) {
+    return 3600; // 1 hour for CSS/JS (reduced from 24 hours)
+  }
+  
+  // Fonts and icons - longer cache (these rarely change)
+  if (path.endsWith(".woff") || path.endsWith(".woff2") || 
+      path.endsWith(".ttf") || path.endsWith(".eot") ||
+      path.endsWith(".ico") || path.endsWith(".svg")) {
+    return 86400; // 24 hours for fonts, icons
+  }
+  
+  // Images - medium cache
+  if (path.endsWith(".png") || path.endsWith(".jpg") || 
+      path.endsWith(".jpeg") || path.endsWith(".gif")) {
+    return 3600; // 1 hour for images
+  }
+  
+  // HTML files and dynamic content - short cache
+  if (path.endsWith(".html") || path.endsWith(".htm")) {
+    return 300; // 5 minutes for HTML
+  }
+  
+  // JSON and other dynamic content - no cache
+  if (path.endsWith(".json") || path.endsWith(".xml")) {
+    return 0; // No cache for dynamic data
+  }
+  
+  return 300; // Default: 5 minutes
+}
+
+// Set appropriate caching headers based on file type
+void WebServer::setCacheHeaders(const String& path) {
+  // Check if client is requesting no-cache (Ctrl+F5 or hard refresh)
+  bool forceNoCache = false;
+  if (this->restServer->hasHeader("Cache-Control")) {
+    String clientCacheControl = this->restServer->header("Cache-Control");
+    if (clientCacheControl.indexOf("no-cache") >= 0 || clientCacheControl.indexOf("no-store") >= 0) {
+      forceNoCache = true;
+      Serial.println("Client requested no-cache, honoring request");
+    }
+  }
+  
+  // Check for Pragma: no-cache (older browsers)
+  if (this->restServer->hasHeader("Pragma")) {
+    String pragma = this->restServer->header("Pragma");
+    if (pragma.indexOf("no-cache") >= 0) {
+      forceNoCache = true;
+      Serial.println("Client sent Pragma: no-cache, honoring request");
+    }
+  }
+
+  int cacheDuration = getCacheDuration(path);
+  
+  if (forceNoCache) {
+    // Client requested no-cache - send anti-caching headers
+    this->restServer->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    this->restServer->sendHeader("Pragma", "no-cache");
+    this->restServer->sendHeader("Expires", "0");
+  } else if (cacheDuration > 0) {
+    // Set cache headers for static content
+    String cacheControl = "public, max-age=" + String(cacheDuration);
+    this->restServer->sendHeader("Cache-Control", cacheControl);
+    
+    // Add ETag based on file path and current time for better cache busting
+    uint32_t hash = 0;
+    for (int i = 0; i < path.length(); i++) {
+      hash = hash * 31 + path.charAt(i);
+    }
+    // Include millis in hash to make ETags more unique per restart
+    hash = hash * 17 + (millis() / 10000); // Change every 10 seconds for better cache busting
+    String etag = "\"" + String(hash, HEX) + "\"";
+    this->restServer->sendHeader("ETag", etag);
+    
+    Serial.print("Cache headers set for ");
+    Serial.print(path);
+    Serial.print(" - max-age: ");
+    Serial.print(cacheDuration);
+    Serial.println(" seconds");
+  } else {
+    // Prevent caching for dynamic content or when client requests no-cache
+    this->restServer->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    this->restServer->sendHeader("Pragma", "no-cache");
+    this->restServer->sendHeader("Expires", "0");
+    
+    if (forceNoCache) {
+      Serial.print("No-cache headers set for ");
+      Serial.print(path);
+      Serial.println(" (client requested)");
+    } else {
+      Serial.print("No-cache headers set for ");
+      Serial.println(path);
+    }
+  }
+}
+
 // Serve static files from LittleFS with template processing
 void WebServer::serveStaticFile(const String& path, const String& contentType) {
   File file = LittleFS.open(path, "r");
@@ -932,11 +1060,19 @@ void WebServer::serveStaticFile(const String& path, const String& contentType) {
   Serial.print(fileSize);
   Serial.println(" bytes");
   
+  // Set appropriate caching headers before serving content
+  setCacheHeaders(path);
+  
   // Check if this file needs template processing
   bool needsTemplateProcessing = (path == "/js/main.js" || path == "/index.html");
   
   if (needsTemplateProcessing) {
     Serial.println("Applying template processing...");
+    
+    // For template-processed files, add version-specific ETag to ensure cache busting on version changes
+    String versionETag = "\"tpl-" + String(PROGRAM_VERSION) + "-" + String(millis() / 60000) + "\"";
+    this->restServer->sendHeader("ETag", versionETag);
+    this->restServer->sendHeader("Cache-Control", "public, max-age=300"); // 5 minutes for template files
     
     // Read content for template processing
     String content = file.readString();
@@ -957,7 +1093,7 @@ void WebServer::serveStaticFile(const String& path, const String& contentType) {
     tempFile.print(content);
     tempFile.close();
     
-    // Now stream the processed file
+    // Now stream the processed file with cache headers already set
     File processedFile = LittleFS.open(tempPath, "r");
     if (!processedFile) {
       Serial.println("Failed to open processed temporary file");
@@ -977,7 +1113,7 @@ void WebServer::serveStaticFile(const String& path, const String& contentType) {
     Serial.println("Using direct streamFile (no processing needed)");
     this->restServer->streamFile(file, contentType);
     file.close();
-    Serial.println("File streamed successfully");
+    Serial.println("File streamed successfully with cache headers");
   }
 }
 

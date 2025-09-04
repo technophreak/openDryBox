@@ -1,6 +1,9 @@
 // Application Initialization and Resource Loading System
 // This file handles sequential resource loading and application startup for ESP32 constraints
 
+// Set initialization flag immediately to indicate script loaded
+window.initializationStarted = true;
+
 // Sequential loading configuration - modify this array to change loading order
 const RESOURCES_TO_LOAD = [
     { type: 'favicon', src: '/favicon.svg' },
@@ -77,6 +80,11 @@ function updateUnifiedProgress(filename, loaded, total, complete) {
     // Update progress bar using cached DOM elements
     if (domCache.progressBar) domCache.progressBar.style.width = progressPercent + '%';
     if (domCache.progressText) domCache.progressText.textContent = progressPercent + '%';
+    
+    // Notify that loading activity is happening
+    if (typeof window.updateLoadingActivity === 'function') {
+        window.updateLoadingActivity();
+    }
     
     // Update status messages
     updateProgressStatus(filename, loaded, fileSize, complete);
@@ -179,6 +187,11 @@ function loadResourceSequentially(resources, index = 0, retryCount = 0) {
     
     const resource = resources[index];
     const filename = resource.src.split('/').pop();
+    
+    // Update activity to show loading is progressing
+    if (typeof window.updateLoadingActivity === 'function') {
+        window.updateLoadingActivity();
+    }
     
     if (retryCount === 0) {
         console.log(`Starting: ${filename}`);
@@ -607,6 +620,7 @@ function waitForActualFontLoadingAfterUIShow() {
         // Restore XMLHttpRequest
         XMLHttpRequest.prototype.open = originalXHROpen;
         XMLHttpRequest.prototype.send = originalXHRSend;
+        window.networkDetectionComplete = true;
         startStatusUpdatesAfterFontStability();
     }
     
@@ -617,6 +631,7 @@ function waitForActualFontLoadingAfterUIShow() {
 // Start status updates after confirming font loading is complete
 function startStatusUpdatesAfterFontStability() {
     console.log('Starting status updates after font loading stability confirmed...');
+    window.networkDetectionComplete = true;
     updateStatus();
     startRegularUpdates();
     updateWiFiConfigUI();

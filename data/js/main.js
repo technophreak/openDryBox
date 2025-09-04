@@ -166,7 +166,8 @@ function updateStatus() {
       
       const programVersionElement = document.getElementById('programVersion');
       if (programVersionElement && data.program_version !== undefined) {
-        if (currentVersion !== data.program_version) {
+        if (currentVersion !== data.program_version && currentVersion !== '') {
+          console.log('Version change detected:', currentVersion, '->', data.program_version);
           document.getElementById('oldVersion').textContent = currentVersion;
           document.getElementById('newVersion').textContent = data.program_version;
           const versionModal = new bootstrap.Modal(document.getElementById('versionChangeModal'));
@@ -877,3 +878,33 @@ function saveSettings() {
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
 });
+
+// Cache-busting page reload (equivalent to Ctrl+F5)
+function hardReloadPage() {
+  console.log('Performing hard reload to bypass cache...');
+  showToast('Reloading page with fresh files...', 'info');
+  
+  // Small delay to ensure toast is visible
+  setTimeout(() => {
+    // Simple reload - the server now properly handles cache headers
+    location.reload();
+  }, 500);
+}
+
+// Alternative cache-busting function that clears specific caches
+function clearCacheAndReload() {
+  console.log('Clearing cache and reloading...');
+  
+  // Clear any cached data if supported
+  if ('caches' in window) {
+    caches.keys().then(function(names) {
+      for (let name of names) {
+        caches.delete(name);
+      }
+    }).finally(() => {
+      hardReloadPage();
+    });
+  } else {
+    hardReloadPage();
+  }
+}
