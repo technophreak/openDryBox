@@ -169,6 +169,9 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .unit-text {
+            opacity: 0.25;
+        }
     </style>
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
@@ -190,10 +193,37 @@
                         </small>
                     </div>
                     <div class="card-body text-center">
-                        <p class="text-muted mb-2">
-                            Connection: 
-                            <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
-                        </p>
+                        <div class="row align-items-center justify-content-center">
+                            <div class="col-auto">
+                                <span class="text-muted small">Connection:</span>
+                                <span id="connectionStatus" class="badge text-secondary border border-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Initializing connection...">Connecting...</span>
+                            </div>
+                            <div class="col-auto" id="wifiStatusColumn" style="display: none;">
+                                <span class="text-muted small">WiFi:</span>
+                                <span id="wifiStatusBadge" class="badge text-secondary border border-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">
+                                    <span id="wifiModeText">--</span>
+                                    <span id="signalStrengthText">--</span>
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="text-muted small">CPU:</span>
+                                <span id="cpuTempBadge" class="badge text-secondary border border-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">
+                                    <span id="cpuTempText">--°C</span>
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="text-muted small">Freq:</span>
+                                <span id="cpuFreqBadge" class="badge text-secondary border border-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">
+                                    <span id="cpuFreqText">--MHz</span>
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="text-muted small">RAM:</span>
+                                <span id="freeHeapBadge" class="badge text-secondary border border-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">
+                                    <span id="freeHeapText">--KB</span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

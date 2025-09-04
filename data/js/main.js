@@ -22,6 +22,13 @@ function initializeApplication() {
   setTimeout(function() {
     // Set up event listeners
     setupEventListeners();
+    
+    // Start initial status update
+    updateStatus();
+    
+    // Start regular updates
+    startRegularUpdates();
+    
     console.log('Application initialized successfully!');
   }, 1000);
 }
@@ -65,22 +72,31 @@ function updateConnectionStatus(status, tooltip = '', showToastMsg = false) {
   if (!badge) return;
   badge.textContent = status;
   badge.setAttribute('data-bs-original-title', tooltip);
+  badge.setAttribute('title', tooltip);
+  
+  // Update existing Bootstrap tooltip if it exists
+  if (typeof bootstrap !== 'undefined') {
+    const tooltipInstance = bootstrap.Tooltip.getInstance(badge);
+    if (tooltipInstance) {
+      tooltipInstance.setContent({ '.tooltip-inner': tooltip });
+    }
+  }
   
   if (status === 'Connected') {
-    badge.className = 'badge bg-success';
+    badge.className = 'badge text-success border border-success';
     if (connectionState === 'disconnected' && showToastMsg) {
       showToast('Connection restored!', 'success');
     }
     connectionState = 'connected';
     reconnectInterval = 3000;
   } else if (status === 'Disconnected') {
-    badge.className = 'badge bg-danger';
+    badge.className = 'badge text-danger border border-danger';
     if (connectionState === 'connected' && showToastMsg) {
       showToast('Connection lost! Attempting to reconnect...', 'error');
     }
     connectionState = 'disconnected';
   } else {
-    badge.className = 'badge bg-warning text-dark';
+    badge.className = 'badge text-warning border border-warning';
     connectionState = 'pending';
   }
 }
@@ -180,12 +196,12 @@ function updateStatus() {
       // Update sensor data
       const tempElement = document.getElementById('temperature');
       if (tempElement && data.sensor0_temperature !== undefined) {
-        tempElement.textContent = data.sensor0_temperature + '°C';
+        tempElement.innerHTML = data.sensor0_temperature + '<span class="unit-text">°C</span>';
       }
       
       const humidityElement = document.getElementById('humidity');
       if (humidityElement && data.sensor0_humidity !== undefined) {
-        humidityElement.textContent = data.sensor0_humidity + '%';
+        humidityElement.innerHTML = data.sensor0_humidity + '<span class="unit-text">%</span>';
       }
       
       // Update output status
@@ -208,6 +224,12 @@ function updateStatus() {
       }
       
       updateWiFiConfigUI(data);
+      
+      // Update WiFi mode and signal strength display
+      updateWiFiModeAndSignal(data);
+      
+      // Update system information
+      updateSystemInfo(data);
     })
     .catch(error => {
       console.error('Update failed:', error);
@@ -268,6 +290,199 @@ function updateWiFiConfigUI(data) {
     disableBtn.style.display = 'block';
   } else {
     wifiConfigRow.style.display = 'none';
+  }
+}
+
+// Update WiFi mode and signal strength display
+function updateWiFiModeAndSignal(data) {
+  if (!data) return;
+  
+  const wifiStatusColumn = document.getElementById('wifiStatusColumn');
+  const wifiStatusBadge = document.getElementById('wifiStatusBadge');
+  const wifiModeText = document.getElementById('wifiModeText');
+  const signalStrengthText = document.getElementById('signalStrengthText');
+  
+  if (!wifiStatusColumn || !wifiStatusBadge || !wifiModeText || !signalStrengthText) return;
+  
+  // Check if WiFi is disabled in settings
+  if (data.wifi_enabled === false) {
+    wifiStatusColumn.style.display = 'none';
+    return;
+  }
+  
+  // Show the WiFi status column
+  wifiStatusColumn.style.display = 'block';
+  
+  let badgeClass = 'badge text-secondary border border-secondary ms-1';
+  let modeTooltip = '';
+  let signalTooltip = '';
+  let combinedTooltip = '';
+  
+  // Update WiFi mode and signal strength
+  if (data.ap_mode_active) {
+    wifiModeText.textContent = 'AP';
+    signalStrengthText.textContent = '';
+    badgeClass = 'badge text-warning border border-warning ms-1';
+    modeTooltip = 'Access Point Mode - Device is broadcasting its own WiFi network';
+    signalTooltip = 'Broadcasting access point';
+    combinedTooltip = modeTooltip;
+  } else if (data.wifi_connected) {
+    wifiModeText.textContent = 'ST ';
+    modeTooltip = 'Station Mode - Connected to WiFi network';
+    
+    // Update signal strength and badge color based on signal strength
+    if (data.wifi_signal_strength !== undefined) {
+      const rssi = data.wifi_signal_strength;
+      signalStrengthText.innerHTML = rssi + '<span class="unit-text">dBm</span>';
+      
+      // Determine badge color and tooltip based on signal strength
+      if (rssi >= -50) {
+        badgeClass = 'badge text-success border border-success ms-1';
+        signalTooltip = 'Excellent signal strength (' + rssi + 'dBm)';
+      } else if (rssi >= -60) {
+        badgeClass = 'badge text-success border border-success ms-1';
+        signalTooltip = 'Good signal strength (' + rssi + 'dBm)';
+      } else if (rssi >= -70) {
+        badgeClass = 'badge text-warning border border-warning ms-1';
+        signalTooltip = 'Fair signal strength (' + rssi + 'dBm)';
+      } else if (rssi >= -80) {
+        badgeClass = 'badge text-warning border border-warning ms-1';
+        signalTooltip = 'Weak signal strength (' + rssi + 'dBm)';
+      } else {
+        badgeClass = 'badge text-danger border border-danger ms-1';
+        signalTooltip = 'Very weak signal strength (' + rssi + 'dBm)';
+      }
+    } else {
+      signalStrengthText.textContent = '?';
+      badgeClass = 'badge text-info border border-info ms-1';
+      signalTooltip = 'Signal strength not available';
+    }
+    
+    combinedTooltip = modeTooltip + ' | ' + signalTooltip;
+  } else {
+    wifiModeText.textContent = 'ST ';
+    signalStrengthText.textContent = 'OFF';
+    badgeClass = 'badge text-danger border border-danger ms-1';
+    modeTooltip = 'Station Mode - Not connected to WiFi network';
+    signalTooltip = 'WiFi not connected';
+    combinedTooltip = modeTooltip + ' | ' + signalTooltip;
+  }
+  
+  // Update badge class and tooltip
+  wifiStatusBadge.className = badgeClass;
+  wifiStatusBadge.setAttribute('data-bs-original-title', combinedTooltip);
+  wifiStatusBadge.setAttribute('title', combinedTooltip);
+  
+  // Reinitialize tooltips for the updated elements
+  reinitializeTooltips();
+}
+
+// Update system information display
+function updateSystemInfo(data) {
+  if (!data) return;
+  
+  // Update CPU temperature
+  const cpuTempBadge = document.getElementById('cpuTempBadge');
+  const cpuTempText = document.getElementById('cpuTempText');
+  if (cpuTempBadge && cpuTempText && data.board_cpu_temp !== undefined) {
+    const temp = parseFloat(data.board_cpu_temp);
+    cpuTempText.innerHTML = temp.toFixed(1) + '<span class="unit-text">°C</span>';
+    
+    // Color code based on temperature
+    let tempClass = 'badge text-info border border-info ms-1';
+    let tempTooltip = 'ESP32 internal temperature: ' + temp.toFixed(1) + '°C';
+    
+    if (temp > 80) {
+      tempClass = 'badge text-danger border border-danger ms-1';
+      tempTooltip += ' (Hot - consider cooling)';
+    } else if (temp > 70) {
+      tempClass = 'badge text-warning border border-warning ms-1';
+      tempTooltip += ' (Warm - normal operation)';
+    } else if (temp > 50) {
+      tempClass = 'badge text-success border border-success ms-1';
+      tempTooltip += ' (Normal operating temperature)';
+    } else {
+      tempTooltip += ' (Cool)';
+    }
+    
+    cpuTempBadge.className = tempClass;
+    cpuTempBadge.setAttribute('data-bs-original-title', tempTooltip);
+    cpuTempBadge.setAttribute('title', tempTooltip);
+  }
+  
+  // Update CPU frequency
+  const cpuFreqBadge = document.getElementById('cpuFreqBadge');
+  const cpuFreqText = document.getElementById('cpuFreqText');
+  if (cpuFreqBadge && cpuFreqText && data.board_cpu_freq !== undefined) {
+    const freq = data.board_cpu_freq;
+    cpuFreqText.innerHTML = freq + '<span class="unit-text">MHz</span>';
+    
+    let freqClass = 'badge text-info border border-info ms-1';
+    let freqTooltip = 'CPU frequency: ' + freq + 'MHz';
+    
+    if (freq >= 240) {
+      freqClass = 'badge text-success border border-success ms-1';
+      freqTooltip += ' (High performance)';
+    } else if (freq >= 160) {
+      freqClass = 'badge text-warning border border-warning ms-1';
+      freqTooltip += ' (Medium performance)';
+    } else {
+      freqTooltip += ' (Power saving mode)';
+    }
+    
+    cpuFreqBadge.className = freqClass;
+    cpuFreqBadge.setAttribute('data-bs-original-title', freqTooltip);
+    cpuFreqBadge.setAttribute('title', freqTooltip);
+  }
+  
+  // Update free heap memory
+  const freeHeapBadge = document.getElementById('freeHeapBadge');
+  const freeHeapText = document.getElementById('freeHeapText');
+  if (freeHeapBadge && freeHeapText && data.board_free_heap !== undefined) {
+    const heap = data.board_free_heap;
+    const heapKB = Math.round(heap / 1024);
+    freeHeapText.innerHTML = heapKB + '<span class="unit-text">KB</span>';
+    
+    let heapClass = 'badge text-info border border-info ms-1';
+    let heapTooltip = 'Free RAM: ' + heapKB + 'KB (' + heap + ' bytes)';
+    
+    if (heap < 20000) {
+      heapClass = 'badge text-danger border border-danger ms-1';
+      heapTooltip += ' (Low memory - may affect performance)';
+    } else if (heap < 50000) {
+      heapClass = 'badge text-warning border border-warning ms-1';
+      heapTooltip += ' (Moderate memory usage)';
+    } else {
+      heapClass = 'badge text-success border border-success ms-1';
+      heapTooltip += ' (Plenty of memory available)';
+    }
+    
+    freeHeapBadge.className = heapClass;
+    freeHeapBadge.setAttribute('data-bs-original-title', heapTooltip);
+    freeHeapBadge.setAttribute('title', heapTooltip);
+  }
+  
+  // Reinitialize tooltips for the updated elements
+  reinitializeTooltips();
+}
+
+// Reinitialize Bootstrap tooltips for dynamically updated elements
+function reinitializeTooltips() {
+  if (typeof bootstrap !== 'undefined') {
+    // Dispose of existing tooltips first
+    const existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    existingTooltips.forEach(element => {
+      const tooltip = bootstrap.Tooltip.getInstance(element);
+      if (tooltip) {
+        tooltip.dispose();
+      }
+    });
+    
+    // Reinitialize all tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) { 
+      return new bootstrap.Tooltip(tooltipTriggerEl); 
+    });
   }
 }
 

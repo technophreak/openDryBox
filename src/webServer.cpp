@@ -221,12 +221,14 @@ void WebServer::getJsonStatus() {
   doc["device_name"] = this->myPreferences->getString("device_name");
   doc["program_name"] = PROGRAM_NAME;
   doc["program_version"] = PROGRAM_VERSION;
-  doc["wifi_signal_strength"] = WiFi.RSSI();
   doc["board_free_heap"] = ESP.getFreeHeap();
+  doc["board_cpu_temp"] = temperatureRead();
+  doc["board_cpu_freq"] = ESP.getCpuFreqMHz();
   doc["uptime"] = currentMilliseconds;
-  doc["ap_mode_active"] = apModeActive;
-  doc["wifi_connected"] = WiFi.status() == WL_CONNECTED;
   doc["wifi_enabled"] = this->myPreferences->getBool("wifi_enabled");
+  doc["wifi_connected"] = WiFi.status() == WL_CONNECTED;
+  doc["wifi_signal_strength"] = WiFi.RSSI();
+  doc["ap_mode_active"] = apModeActive;
   
   // Sensor data
   doc["sensor0_temperature"] = sensor0Temperature;
